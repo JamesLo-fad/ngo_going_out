@@ -1,0 +1,14 @@
+name = "ngo-ra-multilingual"
+compatibility_date = "2024-10-01"
+
+[vars]
+DEFAULT_PAGE_SIZE = "10"
+MAX_PAGE_SIZE = "20"
+MAX_PAGES = "50"
+ALLOW_ORG_SEARCH = "1"
+ALLOW_POLICY_SEARCH = "1"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ngo_going_out"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"

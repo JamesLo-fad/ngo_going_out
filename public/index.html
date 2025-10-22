@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>一带一路NGO/政策数据库 · China House</title>
+  <meta name="description" content="多语言（简体/繁體/English）的一带一路NGO与政策数据库，支持全文检索、筛选与分页。" />
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #0b1220;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2937;
+      --accent: #22c55e;
+      --accent2: #60a5fa;
+      --warn: #f59e0b;
+      --error: #ef4444;
+      --ok: #10b981;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, var(--bg), #0a0f1d 60%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      line-height: 1.5;
+    }
+    a { color: #93c5fd; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header {
+      position: sticky; top: 0; z-index: 30;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    .container { max-width: 1060px; margin: 0 auto; padding: 12px 16px; }
+    .topbar { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+    .brand { font-weight: 800; font-size: 16px; }
+    .lang { display: flex; gap: 8px; }
+    .lang button {
+      background: var(--panel); border: 1px solid var(--border); color: var(--text);
+      padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 13px;
+    }
+    .lang button.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0a0f1d; border: none; }
+
+    .tabs { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .tab-btn {
+      background: #0b1220; border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 14px;
+    }
+    .tab-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0a0f1d; border: none; }
+
+    .searchbar {
+      margin-top: 10px;
+      display: grid; gap: 8px;
+      grid-template-columns: 1fr;
+    }
+    .row { display: grid; gap: 8px; grid-template-columns: 2fr 1fr 1fr auto; }
+    @media (max-width: 860px) { .row { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+
+    input, select, button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+    }
+    input::placeholder { color: var(--muted); }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b1220; border: none; font-weight: 800; cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    main { padding: 16px 16px 40px; }
+    .controls {
+      display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 12px 0 8px;
+    }
+    .pill { background: #0a0f1d; border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .chip { padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px; background: #0b1220; font-size: 12px; color: #cbd5e1; cursor: pointer; }
+    .chip.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0b1220; border: none; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+    }
+    .results { display: grid; gap: 8px; }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #0e1628;
+    }
+    .card .name { font-weight: 800; font-size: 16px; margin: 0 0 6px 0; }
+    .meta { color: var(--muted); font-size: 13px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .summary { margin-top: 8px; font-size: 14px; color: #d1d5db; }
+    .policy-title a { color: #93c5fd; font-weight: 700; }
+    .pagination { display: flex; gap: 6px; align-items: center; }
+    .notice { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .error { color: var(--error); }
+
+    footer { color: var(--muted); font-size: 12px; padding: 24px 16px; text-align: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+  </style>
+</head>
+<body>
+  <a class="sr-only" href="#results">Skip to results</a>
+  <header>
+    <div class="container">
+      <div class="topbar">
+        <div class="brand" id="brand">一带一路NGO/政策数据库</div>
+        <div class="lang" role="group" aria-label="Language">
+          <button data-lang="zh-Hans" class="active">简体中文</button>
+          <button data-lang="zh-Hant">繁體中文</button>
+          <button data-lang="en">English</button>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="orgs" role="tab" aria-selected="true" id="tab-orgs">组织数据库</button>
+        <button class="tab-btn" data-tab="policies" role="tab" aria-selected="false" id="tab-policies">政策数据库</button>
+      </div>
+
+      <div class="searchbar panel" role="search" id="search-orgs">
+        <label class="sr-only" for="q-orgs">关键词</label>
+        <input id="q-orgs" type="search" placeholder="关键词（组织名、使命、项目、地区、服务）" autocomplete="off" />
+        <div class="row">
+          <div>
+            <label class="sr-only" for="country-orgs">国家/地区</label>
+            <input id="country-orgs" list="countries-orgs" placeholder="国家/地区（选择或输入）" autocomplete="off" />
+            <datalist id="countries-orgs"></datalist>
+          </div>
+          <div>
+            <label class="sr-only" for="sector-orgs">领域/服务</label>
+            <input id="sector-orgs" list="sectors-orgs" placeholder="领域/服务（选择或输入）" autocomplete="off" />
+            <datalist id="sectors-orgs"></datalist>
+          </div>
+          <button id="searchBtn-orgs" class="primary" aria-label="搜索组织">搜索</button>
+        </div>
+        <div class="chips" id="chips-orgs" aria-label="快捷筛选"></div>
+        <div class="notice" id="notice-orgs">仅返回必要字段，并限制每页与最大页数。需要更深度数据/合作，请联系微信 chinahouse04。</div>
+      </div>
+
+      <div class="searchbar panel" role="search" id="search-policies" style="display:none">
+        <label class="sr-only" for="q-policies">关键词</label>
+        <input id="q-policies" type="search" placeholder="关键词（题目、属性、发布单位）" autocomplete="off" />
+        <div class="row">
+          <div>
+            <label class="sr-only" for="attr-policies">属性</label>
+            <input id="attr-policies" placeholder="属性（如：政策意见、批复公示）" autocomplete="off" />
+          </div>
+          <div>
+            <label class="sr-only" for="dept-policies">发布单位</label>
+            <input id="dept-policies" placeholder="发布单位" autocomplete="off" />
+          </div>
+          <button id="searchBtn-policies" class="primary" aria-label="搜索政策">搜索</button>
+        </div>
+        <div class="notice" id="notice-policies">数据来源：您提供的“相关政策收集”表。点击标题可访问原文链接。</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="controls" id="controls-orgs">
+      <div><span id="count-orgs" class="pill">0</span></div>
+      <div class="pagination">
+        <button id="prev-orgs">上一页</button>
+        <span id="page-orgs" class="pill">1/1</span>
+        <button id="next-orgs">下一页</button>
+      </div>
+    </div>
+
+    <section id="results-orgs" class="results" aria-live="polite" aria-busy="false"></section>
+
+    <div class="controls" id="controls-policies" style="display:none">
+      <div><span id="count-policies" class="pill">0</span></div>
+      <div class="pagination">
+        <button id="prev-policies">上一页</button>
+        <span id="page-policies" class="pill">1/1</span>
+        <button id="next-policies">下一页</button>
+      </div>
+    </div>
+
+    <section id="results-policies" class="results" aria-live="polite" aria-busy="false" style="display:none"></section>
+
+    <footer>
+      © China House · Contact: info@chinagoingout.org · 微信 chinahouse04
+    </footer>
+  </main>
+
+  <script>
+    // i18n dictionary
+    const I18N = {
+      'zh-Hans': {
+        brand: '一带一路NGO/政策数据库',
+        tabOrgs: '组织数据库',
+        tabPolicies: '政策数据库',
+        orgsPlaceholder: '关键词（组织名、使命、项目、地区、服务）',
+        countryPlaceholder: '国家/地区（选择或输入）',
+        sectorPlaceholder: '领域/服务（选择或输入）',
+        search: '搜索',
+        noticeOrgs: '仅返回必要字段，并限制每页与最大页数。需要更深度数据/合作，请联系微信 chinahouse04。',
+        policiesPlaceholder: '关键词（题目、属性、发布单位）',
+        attrPlaceholder: '属性（如：政策意见、批复公示）',
+        deptPlaceholder: '发布单位',
+        noticePolicies: '数据来源：您提供的“相关政策收集”表。点击标题可访问原文链接。',
+        prev: '上一页',
+        next: '下一页',
+        results: '条结果',
+        page: '第 {a}/{b} 页',
+        noResults: '没有找到匹配的结果，请更换关键词或清空筛选。',
+        orgMetaGo: '出海',
+        orgMetaOffice: '海外办公室',
+        orgMetaRegions: '地区',
+        orgMetaServices: '服务',
+        policyAttr: '属性',
+        policyDept: '发布单位',
+        published: '发布'
+      },
+      'zh-Hant': {
+        brand: '一帶一路NGO/政策資料庫',
+        tabOrgs: '組織資料庫',
+        tabPolicies: '政策資料庫',
+        orgsPlaceholder: '關鍵詞（組織名、使命、項目、地區、服務）',
+        countryPlaceholder: '國家/地區（選擇或輸入）',
+        sectorPlaceholder: '領域/服務（選擇或輸入）',
+        search: '搜尋',
+        noticeOrgs: '僅返回必要欄位，並限制每頁與最大頁數。需更深度資料/合作，請聯繫微信 chinahouse04。',
+        policiesPlaceholder: '關鍵詞（題目、屬性、發布單位）',
+        attrPlaceholder: '屬性（如：政策意見、批覆公示）',
+        deptPlaceholder: '發布單位',
+        noticePolicies: '數據來源：您提供的「相關政策收集」表。點擊標題可訪問原文連結。',
+        prev: '上一頁',
+        next: '下一頁',
+        results: '條結果',
+        page: '第 {a}/{b} 頁',
+        noResults: '沒有找到匹配的結果，請更換關鍵詞或清空篩選。',
+        orgMetaGo: '走出海',
+        orgMetaOffice: '海外辦公室',
+        orgMetaRegions: '地區',
+        orgMetaServices: '服務',
+        policyAttr: '屬性',
+        policyDept: '發布單位',
+        published: '發布'
+      },
+      'en': {
+        brand: 'Belt & Road NGO/Policy Database',
+        tabOrgs: 'Organizations',
+        tabPolicies: 'Policies',
+        orgsPlaceholder: 'Keywords (name, mission, projects, regions, services)',
+        countryPlaceholder: 'Country/Region (choose or type)',
+        sectorPlaceholder: 'Sector/Service (choose or type)',
+        search: 'Search',
+        noticeOrgs: 'List view returns minimal fields with page limits. For in-depth data/cooperation, please contact WeChat: chinahouse04.',
+        policiesPlaceholder: 'Keywords (title, attribute, departments)',
+        attrPlaceholder: 'Attribute (e.g., Policy Opinion, Public Reply)',
+        deptPlaceholder: 'Department',
+        noticePolicies: 'Data source: your “Policy Collection” sheet. Click the title to open the official link.',
+        prev: 'Prev',
+        next: 'Next',
+        results: 'results',
+        page: 'Page {a} of {b}',
+        noResults: 'No matches. Try different keywords or clear filters.',
+        orgMetaGo: 'Go-out',
+        orgMetaOffice: 'Overseas Office',
+        orgMetaRegions: 'Regions',
+        orgMetaServices: 'Services',
+        policyAttr: 'Attribute',
+        policyDept: 'Departments',
+        published: 'Published'
+      }
+    };
+
+    let LANG = 'zh-Hans';
+    const T = k => (I18N[LANG][k] || I18N['en'][k] || k);
+    const els = {
+      brand: document.getElementById('brand'),
+      tabOrgs: document.getElementById('tab-orgs'),
+      tabPolicies: document.getElementById('tab-policies'),
+      qOrgs: document.getElementById('q-orgs'),
+      countryOrgs: document.getElementById('country-orgs'),
+      sectorOrgs: document.getElementById('sector-orgs'),
+      searchBtnOrgs: document.getElementById('searchBtn-orgs'),
+      chipsOrgs: document.getElementById('chips-orgs'),
+      noticeOrgs: document.getElementById('notice-orgs'),
+      qPolicies: document.getElementById('q-policies'),
+      attrPolicies: document.getElementById('attr-policies'),
+      deptPolicies: document.getElementById('dept-policies'),
+      searchBtnPolicies: document.getElementById('searchBtn-policies'),
+      noticePolicies: document.getElementById('notice-policies'),
+      prevOrgs: document.getElementById('prev-orgs'),
+      nextOrgs: document.getElementById('next-orgs'),
+      pageOrgs: document.getElementById('page-orgs'),
+      countOrgs: document.getElementById('count-orgs'),
+      prevPolicies: document.getElementById('prev-policies'),
+      nextPolicies: document.getElementById('next-policies'),
+      pagePolicies: document.getElementById('page-policies'),
+      countPolicies: document.getElementById('count-policies'),
+      resultsOrgs: document.getElementById('results-orgs'),
+      resultsPolicies: document.getElementById('results-policies'),
+      searchOrgsPanel: document.getElementById('search-orgs'),
+      searchPoliciesPanel: document.getElementById('search-policies'),
+      controlsOrgs: document.getElementById('controls-orgs'),
+      controlsPolicies: document.getElementById('controls-policies')
+    };
+
+    function applyLang() {
+      els.brand.textContent = T('brand');
+      els.tabOrgs.textContent = T('tabOrgs');
+      els.tabPolicies.textContent = T('tabPolicies');
+      els.qOrgs.placeholder = T('orgsPlaceholder');
+      els.countryOrgs.placeholder = T('countryPlaceholder');
+      els.sectorOrgs.placeholder = T('sectorPlaceholder');
+      els.searchBtnOrgs.textContent = T('search');
+
+      els.noticeOrgs.textContent = T('noticeOrgs');
+
+      els.qPolicies.placeholder = T('policiesPlaceholder');
+      els.attrPolicies.placeholder = T('attrPlaceholder');
+      els.deptPolicies.placeholder = T('deptPlaceholder');
+      els.searchBtnPolicies.textContent = T('search');
+      els.noticePolicies.textContent = T('noticePolicies');
+
+      els.prevOrgs.textContent = T('prev');
+      els.nextOrgs.textContent = T('next');
+      els.prevPolicies.textContent = T('prev');
+      els.nextPolicies.textContent = T('next');
+
+      // refresh pagination labels if data present
+      renderOrgs(lastOrgs.items || [], lastOrgs.page || 1, lastOrgs.totalPages || 1, lastOrgs.total || 0);
+      renderPolicies(lastPolicies.items || [], lastPolicies.page || 1, lastPolicies.totalPages || 1, lastPolicies.total || 0);
+    }
+
+    // language buttons
+    document.querySelectorAll('.lang button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        LANG = btn.getAttribute('data-lang');
+        document.documentElement.lang = LANG;
+        applyLang();
+      });
+    });
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-tab');
+        if (tab === 'orgs') {
+          els.searchOrgsPanel.style.display = '';
+          els.resultsOrgs.style.display = '';
+          els.controlsOrgs.style.display = '';
+          els.searchPoliciesPanel.style.display = 'none';
+          els.resultsPolicies.style.display = 'none';
+          els.controlsPolicies.style.display = 'none';
+        } else {
+          els.searchOrgsPanel.style.display = 'none';
+          els.resultsOrgs.style.display = 'none';
+          els.controlsOrgs.style.display = 'none';
+          els.searchPoliciesPanel.style.display = '';
+          els.resultsPolicies.style.display = '';
+          els.controlsPolicies.style.display = '';
+        }
+      });
+    });
+
+    // State
+    const qs = new URLSearchParams(location.search);
+    const stateOrgs = {
+      q: qs.get('q') || '',
+      country: qs.get('country') || '',
+      sector: qs.get('sector') || '',
+      page: Math.max(1, parseInt(qs.get('page') || '1', 10)),
+      pageSize: 10
+    };
+    const statePolicies = {
+      q: '',
+      attr: '',
+      dept: '',
+      page: 1,
+      pageSize: 10
+    };
+
+    els.qOrgs.value = stateOrgs.q;
+    els.countryOrgs.value = stateOrgs.country;
+    els.sectorOrgs.value = stateOrgs.sector;
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    async function fetchJSON(url) {
+      const res = await fetch(url, { headers: { 'accept': 'application/json' } });
+      if (!res.ok) throw new Error('Network');
+      return res.json();
+    }
+
+    function buildParamsOrgs() {
+      const p = new URLSearchParams();
+      if (stateOrgs.q) p.set('q', stateOrgs.q);
+      if (stateOrgs.country) p.set('country', stateOrgs.country);
+      if (stateOrgs.sector) p.set('sector', stateOrgs.sector);
+      p.set('page', String(stateOrgs.page));
+      p.set('pageSize', String(stateOrgs.pageSize));
+      return p.toString();
+    }
+
+    function renderOrgs(items, page, totalPages, total) {
+      els.pageOrgs.textContent = T('page').replace('{a}', page).replace('{b}', totalPages);
+      els.countOrgs.textContent = `${total} ${T('results')}`;
+      els.prevOrgs.disabled = page <= 1;
+      els.nextOrgs.disabled = page >= totalPages;
+      if (!items.length) {
+        els.resultsOrgs.innerHTML = `<div class="panel">${escapeHtml(T('noResults'))}</div>`;
+        return;
+      }
+      els.resultsOrgs.innerHTML = items.map(it => {
+        const metas = [];
+        if (it.go_out_year) metas.push(`${T('orgMetaGo')}: ${escapeHtml(it.go_out_year)}`);
+        if (it.overseas_office) metas.push(`${T('orgMetaOffice')}: ${escapeHtml(it.overseas_office)}`);
+        if (it.project_regions) metas.push(`${T('orgMetaRegions')}: ${escapeHtml(it.project_regions)}`);
+        if (it.services) metas.push(`${T('orgMetaServices')}: ${escapeHtml(it.services)}`);
+        return `
+          <article class="card">
+            <h2 class="name">${escapeHtml(it.name || '')}</h2>
+            <div class="meta">${metas.join(' · ')}</div>
+            ${it.summary ? `<p class="summary">${escapeHtml(it.summary)}</p>` : ''}
+          </article>
+        `;
+      }).join('');
+    }
+
+    function buildParamsPolicies() {
+      const p = new URLSearchParams();
+      if (statePolicies.q) p.set('q', statePolicies.q);
+      if (statePolicies.attr) p.set('attr', statePolicies.attr);
+      if (statePolicies.dept) p.set('dept', statePolicies.dept);
+      p.set('page', String(statePolicies.page));
+      p.set('pageSize', String(statePolicies.pageSize));
+      return p.toString();
+    }
+
+    function renderPolicies(items, page, totalPages, total) {
+      els.pagePolicies.textContent = T('page').replace('{a}', page).replace('{b}', totalPages);
+      els.countPolicies.textContent = `${total} ${T('results')}`;
+      els.prevPolicies.disabled = page <= 1;
+      els.nextPolicies.disabled = page >= totalPages;
+      if (!items.length) {
+        els.resultsPolicies.innerHTML = `<div class="panel">${escapeHtml(T('noResults'))}</div>`;
+        return;
+      }
+      els.resultsPolicies.innerHTML = items.map(it => {
+        const depts = [it.dept1, it.dept2, it.dept3, it.dept4].filter(Boolean).join(' / ');
+        return `
+          <article class="card">
+            <h2 class="policy-title">
+              ${it.link ? `<a href="${escapeHtml(it.link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(it.title)}</a>` : escapeHtml(it.title)}
+            </h2>
+            <div class="meta">
+              <span>${T('published')}: ${escapeHtml(it.publish_date || '')}</span>
+              ${it.attr ? `<span> · ${T('policyAttr')}: ${escapeHtml(it.attr)}</span>` : ''}
+              ${depts ? `<span> · ${T('policyDept')}: ${escapeHtml(depts)}</span>` : ''}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    let lastOrgs = { items: [], page: 1, totalPages: 1, total: 0 };
+    let lastPolicies = { items: [], page: 1, totalPages: 1, total: 0 };
+
+    async function loadOrgs() {
+      els.resultsOrgs.setAttribute('aria-busy', 'true');
+      try {
+        const data = await fetchJSON(`/api/search_orgs?${buildParamsOrgs()}`);
+        lastOrgs = data;
+        renderOrgs(data.items || [], data.page, data.totalPages, data.total);
+        const url = new URL(location.href);
+        const p = new URLSearchParams();
+        if (stateOrgs.q) p.set('q', stateOrgs.q);
+        if (stateOrgs.country) p.set('country', stateOrgs.country);
+        if (stateOrgs.sector) p.set('sector', stateOrgs.sector);
+        p.set('page', String(stateOrgs.page));
+        url.search = p.toString();
+        history.replaceState(null, '', url.toString());
+      } catch (e) {
+        els.resultsOrgs.innerHTML = `<div class="panel error">加载失败，请稍后重试。</div>`;
+        console.error(e);
+      } finally {
+        els.resultsOrgs.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    async function loadPolicies() {
+      els.resultsPolicies.setAttribute('aria-busy', 'true');
+      try {
+        const data = await fetchJSON(`/api/search_policies?${buildParamsPolicies()}`);
+        lastPolicies = data;
+        renderPolicies(data.items || [], data.page, data.totalPages, data.total);
+      } catch (e) {
+        els.resultsPolicies.innerHTML = `<div class="panel error">加载失败，请稍后重试。</div>`;
+        console.error(e);
+      } finally {
+        els.resultsPolicies.setAttribute('aria-busy', 'false');
+      }
+    }
+
+    els.searchBtnOrgs.addEventListener('click', () => {
+      stateOrgs.q = els.qOrgs.value.trim();
+      stateOrgs.country = els.countryOrgs.value.trim();
+      stateOrgs.sector = els.sectorOrgs.value.trim();
+      stateOrgs.page = 1;
+      loadOrgs();
+    });
+    els.qOrgs.addEventListener('keydown', e => { if (e.key === 'Enter') els.searchBtnOrgs.click(); });
+
+    els.prevOrgs.addEventListener('click', () => { if (stateOrgs.page > 1) { stateOrgs.page--; loadOrgs(); } });
+    els.nextOrgs.addEventListener('click', () => { stateOrgs.page++; loadOrgs(); });
+
+    els.searchBtnPolicies.addEventListener('click', () => {
+      statePolicies.q = els.qPolicies.value.trim();
+      statePolicies.attr = els.attrPolicies.value.trim();
+      statePolicies.dept = els.deptPolicies.value.trim();
+      statePolicies.page = 1;
+      loadPolicies();
+    });
+    els.qPolicies.addEventListener('keydown', e => { if (e.key === 'Enter') els.searchBtnPolicies.click(); });
+    els.prevPolicies.addEventListener('click', () => { if (statePolicies.page > 1) { statePolicies.page--; loadPolicies(); } });
+    els.nextPolicies.addEventListener('click', () => { statePolicies.page++; loadPolicies(); });
+
+    // Load facets for orgs
+    (async function facets() {
+      try {
+        const data = await fetchJSON('/api/facets_orgs');
+        const countriesDL = document.getElementById('countries-orgs');
+        const sectorsDL = document.getElementById('sectors-orgs');
+        countriesDL.innerHTML = (data.countries || []).map(v => `<option value="${escapeHtml(v)}">`).join('');
+        sectorsDL.innerHTML = (data.sectors || []).map(v => `<option value="${escapeHtml(v)}">`).join('');
+        const topC = (data.countries || []).slice(0, 3);
+        const topS = (data.sectors || []).slice(0, 3);
+        const chips = [
+          ...topC.map(c => ({ type: 'country', label: c })),
+          ...topS.map(s => ({ type: 'sector', label: s }))
+        ];
+        els.chipsOrgs.innerHTML = chips.map(ch =>
+          `<button class="chip" data-type="${escapeHtml(ch.type)}" data-value="${escapeHtml(ch.label)}">${escapeHtml(ch.label)}</button>`
+        ).join('');
+        els.chipsOrgs.addEventListener('click', e => {
+          const btn = e.target.closest('.chip'); if (!btn) return;
+          document.querySelectorAll('#chips-orgs .chip').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const type = btn.getAttribute('data-type');
+          const value = btn.getAttribute('data-value');
+          if (type === 'country') { els.countryOrgs.value = value; els.sectorOrgs.value = ''; }
+          if (type === 'sector') { els.sectorOrgs.value = value; els.countryOrgs.value = ''; }
+          stateOrgs.country = els.countryOrgs.value.trim();
+          stateOrgs.sector = els.sectorOrgs.value.trim();
+          stateOrgs.page = 1;
+          loadOrgs();
+        });
+      } catch (e) { /* optional facets */ }
+    })();
+
+    // initial loads
+    loadOrgs();
+    // policies: do not auto load to avoid extra calls; load when tab clicked or when user searches
+    document.getElementById('tab-policies').addEventListener('click', () => {
+      if (!lastPolicies.total) loadPolicies();
+    });
+
+    applyLang();
+  </script>
+</body>
+</html>
