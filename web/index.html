@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NGO Directory</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #fafafa; color: #111; }
+    header { padding: 16px; background: #111827; color: #fff; }
+    header .container { max-width: 1100px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    header h1 { margin: 0; font-size: 20px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .search-bar { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .search-input { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 16px; }
+    .search-btn { padding: 10px 14px; border: 1px solid #111827; background: #111827; color: #fff; border-radius: 8px; cursor: pointer; }
+    .search-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .org-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+    .org-card { display: block; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #fff; text-decoration: none; color: inherit; transition: box-shadow .2s ease, transform .05s ease; }
+    .org-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.08); transform: translateY(-1px); }
+    .logo-wrap { aspect-ratio: 3 / 2; width: 100%; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+    .org-info { padding: 10px 12px 12px; }
+    .org-info h3 { margin: 0 0 6px 0; font-size: 16px; line-height: 1.3; font-weight: 600; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { font-size: 12px; padding: 3px 6px; border-radius: 999px; background: #eef2ff; color: #3730a3; }
+    .pagination { margin: 16px 0; display: flex; gap: 10px; align-items: center; justify-content: center; }
+    .pagination button { padding: 8px 12px; border: 1px solid #e5e7eb; background: #fff; border-radius: 8px; cursor: pointer; }
+    .pagination button[disabled] { opacity: .5; cursor: not-allowed; }
+    footer { padding: 24px 16px; text-align: center; color: #6b7280; }
+    @media (max-width: 480px) {
+      header .container { flex-direction: column; align-items: flex-start; }
+      .search-bar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>NGO Directory</h1>
+      <a href="/index.html" style="color:#9ca3af;text-decoration:none;">Home</a>
+    </div>
+  </header>
+  <main>
+    <section aria-label="Search">
+      <div class="search-bar">
+        <input id="search-input" class="search-input" type="search" placeholder="Search by name, regions, services..." />
+        <button id="search-btn" class="search-btn">Search</button>
+      </div>
+    </section>
+
+    <section aria-label="Organization List">
+      <div id="org-list-container"></div>
+      <div id="pagination" class="pagination"></div>
+    </section>
+  </main>
+  <footer>
+    <small>&copy; <span id="year"></span> NGO Directory</small>
+  </footer>
+
+  <script>
+    // Point the frontend to the Worker API (8787) in local dev, and same-origin in production.
+    const API_BASE =
+      (location.hostname === "127.0.0.1" || location.hostname === "localhost")
+        ? "http://127.0.0.1:8787"
+        : "";
+
+    // Minimal JS to render search + list + pagination
+    const state = { query: "", page: 1, pageSize: 20, total: 0 };
+    const PLACEHOLDER_LOGO = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160"><rect width="100%" height="100%" fill="%23f0f0f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-family="Arial" font-size="16">No Logo</text></svg>';
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    document.getElementById("search-btn").addEventListener("click", () => {
+      state.query = document.getElementById("search-input").value.trim();
+      state.page = 1;
+      loadOrgs();
+    });
+
+    document.getElementById("search-input").addEventListener("input", debounce((e) => {
+      state.query = e.target.value.trim();
+      state.page = 1;
+      loadOrgs();
+    }, 350));
+
+    async function loadOrgs() {
+      const params = new URLSearchParams();
+      if (state.query) params.set("query", state.query);
+      params.set("page", String(state.page));
+      params.set("page_size", String(state.pageSize));
+
+      const url = `${API_BASE}/api/orgs?${params.toString()}`;
+      console.log("Fetching:", url);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        state.total = Number(data.total || 0);
+        renderOrgList(data.items || []);
+        renderPagination();
+      } catch (err) {
+        console.error("Load failed:", err);
+        renderError("Failed to load organizations.");
+      }
+    }
+
+    function renderError(msg) {
+      document.getElementById("org-list-container").innerHTML = `<p>${escapeHtml(msg)}</p>`;
+      document.getElementById("pagination").innerHTML = "";
+    }
+
+    function renderOrgList(items) {
+      const container = document.getElementById("org-list-container");
+      if (!items.length) {
+        container.innerHTML = "<p>No organizations found.</p>";
+        return;
+      }
+      container.innerHTML = `
+        <div class="org-grid">
+          ${items.map(cardHtml).join("")}
+        </div>
+      `;
+    }
+
+    function cardHtml(org) {
+      const logo = org.logo_url || PLACEHOLDER_LOGO;
+      const region = org.overseas_regions || "";
+      const mode = org.service_mode || "";
+      const level = org.go_out_level || "";
+      return `
+        <a class="org-card" href="/org.html?id=${encodeURIComponent(org.id)}" aria-label="${escapeHtml(org.org_name)}">
+          <div class="logo-wrap">
+            <img src="${logo}" alt="${escapeHtml(org.org_name)} logo" onerror="this.src='${PLACEHOLDER_LOGO}'" loading="lazy" />
+          </div>
+          <div class="org-info">
+            <h3>${escapeHtml(org.org_name)}</h3>
+            <div class="tags">
+              ${level ? `<span class="tag">${escapeHtml(level)}</span>` : ""}
+              ${mode ? `<span class="tag">${escapeHtml(mode)}</span>` : ""}
+              ${region ? `<span class="tag">${escapeHtml(region.split(",")[0])}</span>` : ""}
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    function renderPagination() {
+      const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+      const root = document.getElementById("pagination");
+      root.innerHTML = `
+        <button ${state.page <= 1 ? "disabled" : ""} id="prevPage">Prev</button>
+        <span>Page ${state.page} / ${totalPages}</span>
+        <button ${state.page >= totalPages ? "disabled" : ""} id="nextPage">Next</button>
+      `;
+      document.getElementById("prevPage").onclick = () => { if (state.page > 1) { state.page -= 1; loadOrgs(); } };
+      document.getElementById("nextPage").onclick = () => { if (state.page < totalPages) { state.page += 1; loadOrgs(); } };
+    }
+
+    function escapeHtml(s) {
+      return (s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function debounce(fn, wait) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; }
+
+    // Initial load
+    loadOrgs();
+  </script>
+</body>
+</html>
