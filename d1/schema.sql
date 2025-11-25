@@ -4,7 +4,7 @@ PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS orgs (
   id INTEGER PRIMARY KEY,
-  org_name TEXT,
+  org_name TEXT NOT NULL,
   in_cnie INTEGER,
   in_cace INTEGER,
   in_un INTEGER,
@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS orgs (
   capital_type TEXT,
   reg_location TEXT,
   reg_type TEXT,
-  donation_pre NUMERIC,
+  donation_pre REAL,         -- changed to REAL for clarity
   donation_pre_year TEXT,
-  donation_post NUMERIC,
+  donation_post REAL,        -- changed to REAL for clarity
   mission TEXT,
   org_structure TEXT,
   has_overseas_office INTEGER,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS orgs (
   disclosed_online INTEGER,
   disclosed_continuous INTEGER,
   go_out_level TEXT,
-  logo_url TEXT  -- new column for NGO logo
+  logo_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS policies (
