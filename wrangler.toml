@@ -12,6 +12,7 @@ database_id = "55d3a005-b852-4706-90bf-3fc116393707"
 
 [vars]
 ENV = "development"
+DEBUG_ENABLED = "true"
 
 # Local/dev observability (optional; shows local logs in dashboard if signed in)
 [observability]
@@ -31,3 +32,4 @@ database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
 
 [env.production.vars]
 ENV = "production"
+DEBUG_ENABLED = "false"

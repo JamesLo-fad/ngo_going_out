@@ -4,7 +4,10 @@
 const CORS_ENABLED = true;
 
 // 生产环境建议关闭调试信息；在开发/预发可打开
-const DEBUG_ENABLED = true;
+// Set via environment variable: DEBUG_ENABLED
+function isDebugEnabled(env) {
+  return env?.DEBUG_ENABLED === 'true' || env?.DEBUG_ENABLED === '1';
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -35,6 +38,11 @@ export default {
         return await listOrgs(env, url);
       }
 
+      // 3.5) 组织facets（国家/行业筛选）
+      if (pathname === "/api/orgs/facets" && method === "GET") {
+        return await getOrgsFacets(env);
+      }
+
       // 4) 组织详情
       const orgDetailMatch = pathname.match(/^\/api\/orgs\/(\d+)$/);
       if (orgDetailMatch && method === "GET") {
@@ -50,11 +58,11 @@ export default {
       return json({ error: "Not found" }, 404);
     } catch (err) {
       // 这里捕获到的多为代码级异常（而非 SQL 级）
-      logDebug("API fatal error:", err);
+      logDebug(env, "API fatal error:", err);
       return json(
         {
           error: "Internal Server Error",
-          ...(DEBUG_ENABLED ? { detail: String(err?.message || err) } : {}),
+          ...(isDebugEnabled(env) ? { detail: String(err?.message || err) } : {}),
         },
         500
       );
@@ -66,35 +74,56 @@ export default {
 
 async function listOrgs(env, url) {
   const q = (url.searchParams.get("query") || "").trim();
+  const country = (url.searchParams.get("country") || "").trim();
+  const sector = (url.searchParams.get("sector") || "").trim();
   const page = clampInt(url.searchParams.get("page"), 1, 1_000_000, 1);
-  const pageSize = clampInt(url.searchParams.get("page_size"), 1, 100, 20); // 上限放宽到 100
+  const pageSize = clampInt(url.searchParams.get("page_size"), 1, 100, 20);
   const offset = (page - 1) * pageSize;
 
-  let where = "";
+  let from = "orgs o";
+  const where = [];
   const params = [];
 
+  // Use FTS for text search
   if (q) {
-    // 参数化 LIKE，覆盖多个可检索字段
-    where =
-      "WHERE org_name LIKE ? OR overseas_regions LIKE ? OR overseas_services LIKE ? OR service_mode LIKE ? OR go_out_level LIKE ?";
-    const like = `%${q}%`;
-    params.push(like, like, like, like, like);
+    from = "orgs o JOIN orgs_fts f ON f.rowid = o.id";
+    where.push("f.orgs_fts MATCH ?");
+    // Sanitize query for FTS5
+    params.push(q.replace(/[\"']/g, ' ').trim());
   }
 
-  // 先确保表存在，避免“no such table”直接 500
+  // Add facet filtering
+  if (country || sector) {
+    from += " LEFT JOIN orgs_facets ofa ON ofa.org_id = o.id";
+    if (country) {
+      where.push("ofa.country = ?");
+      params.push(country);
+    }
+    if (sector) {
+      where.push("ofa.sector = ?");
+      params.push(sector);
+    }
+  }
+
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : "";
+  const orderBy = q
+    ? "ORDER BY bm25(f) ASC, o.org_name COLLATE NOCASE ASC"
+    : "ORDER BY o.org_name COLLATE NOCASE ASC";
+
+  // Ensure table exists
   await assertTableExists(env, "orgs");
 
-  // 统计总数
-  const totalSql = `SELECT COUNT(*) AS c FROM orgs ${where}`;
+  // Count total
+  const totalSql = `SELECT COUNT(DISTINCT o.id) AS c FROM ${from} ${whereClause}`;
   const totalRes = await run(env, totalSql, params);
   const total = Number(totalRes.results?.[0]?.c || 0);
 
-  // 列表查询
+  // Get list
   const listSql = `
-    SELECT id, org_name, service_mode, go_out_level, overseas_regions, logo_url
-    FROM orgs
-    ${where}
-    ORDER BY org_name COLLATE NOCASE ASC
+    SELECT DISTINCT o.id, o.org_name, o.service_mode, o.go_out_level, o.overseas_regions, o.logo_url
+    FROM ${from}
+    ${whereClause}
+    ${orderBy}
     LIMIT ? OFFSET ?
   `;
   const listRes = await run(env, listSql, [...params, pageSize, offset]);
@@ -112,7 +141,7 @@ async function getOrgDetail(env, id) {
     SELECT id, org_name, in_cnie, in_cace, in_un,
            founded_date, go_global_date, leaders, key_staff,
            capital_type, reg_location, reg_type,
-           donation_pre, donation_pre_year, donation_post,
+           donation_pre, donation_pre_year, donation_post, donation_post_year,
            mission, org_structure,
            has_overseas_office, overseas_mission, overseas_projects,
            overseas_regions, overseas_services, service_mode,
@@ -127,37 +156,85 @@ async function getOrgDetail(env, id) {
   return json(row);
 }
 
+async function getOrgsFacets(env) {
+  try {
+    await assertTableExists(env, "orgs_facets");
+
+    const countriesSql = `
+      SELECT country, COUNT(DISTINCT org_id) AS cnt
+      FROM orgs_facets
+      WHERE country IS NOT NULL AND TRIM(country) <> ''
+      GROUP BY country
+      ORDER BY cnt DESC, country COLLATE NOCASE ASC
+      LIMIT 200
+    `;
+    const countriesRes = await run(env, countriesSql, []);
+
+    const sectorsSql = `
+      SELECT sector, COUNT(DISTINCT org_id) AS cnt
+      FROM orgs_facets
+      WHERE sector IS NOT NULL AND TRIM(sector) <> ''
+      GROUP BY sector
+      ORDER BY cnt DESC, sector COLLATE NOCASE ASC
+      LIMIT 200
+    `;
+    const sectorsRes = await run(env, sectorsSql, []);
+
+    return json({
+      countries: (countriesRes.results || []).map(r => r.country),
+      sectors: (sectorsRes.results || []).map(r => r.sector)
+    });
+  } catch (e) {
+    logDebug(env, "getOrgsFacets error:", e);
+    return json({ countries: [], sectors: [] });
+  }
+}
+
 async function listPolicies(env, url) {
+  const q = (url.searchParams.get("query") || "").trim();
   const issuer = (url.searchParams.get("issuer") || "").trim();
-  const year = (url.searchParams.get("year") || "").trim(); // 对 published_date 执行子串匹配
+  const year = (url.searchParams.get("year") || "").trim();
+
   await assertTableExists(env, "policies").catch(() => {
     // 没有 policies 表时返回空列表而不是 500（按需调整）
     return;
   });
 
-  let where = "WHERE 1=1";
+  let from = "policies p";
+  const where = [];
   const params = [];
 
+  // Use FTS for text search
+  if (q) {
+    from = "policies p JOIN policies_fts f ON f.rowid = p.id";
+    where.push("f.policies_fts MATCH ?");
+    params.push(q.replace(/[\"']/g, ' ').trim());
+  }
+
   if (issuer) {
-    where +=
-      " AND (issuer_1 LIKE ? OR issuer_2 LIKE ? OR issuer_3 LIKE ? OR issuer_4 LIKE ?)";
+    where.push("(p.issuer_1 LIKE ? OR p.issuer_2 LIKE ? OR p.issuer_3 LIKE ? OR p.issuer_4 LIKE ?)");
     const like = `%${issuer}%`;
     params.push(like, like, like, like);
   }
   if (year) {
-    where += " AND published_date LIKE ?";
+    where.push("p.published_date LIKE ?");
     params.push(`%${year}%`);
   }
 
+  const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : "";
+  const orderBy = q
+    ? "ORDER BY bm25(f) ASC, p.published_date DESC"
+    : "ORDER BY p.published_date DESC";
+
   const sql = `
-    SELECT id, published_date, title, doc_type, issuer_1, issuer_2, issuer_3, issuer_4, link
-    FROM policies
-    ${where}
-    ORDER BY CAST(id AS INT)
+    SELECT ${q ? 'DISTINCT' : ''} p.id, p.published_date, p.title, p.doc_type, p.issuer_1, p.issuer_2, p.issuer_3, p.issuer_4, p.link
+    FROM ${from}
+    ${whereClause}
+    ${orderBy}
   `;
   const res = await run(env, sql, params).catch((e) => {
     // 如果 policies 表不存在或其它错误，返回空列表并携带最小错误信息（DEBUG）
-    logDebug("listPolicies error:", e);
+    logDebug(env, "listPolicies error:", e);
     return { results: [] };
   });
   return json({ items: res.results || [] });
@@ -176,10 +253,10 @@ async function run(env, sql, params = []) {
     const isNoColumn = msg.includes("no such column");
     const body = {
       error: "Database error",
-      ...(DEBUG_ENABLED ? { detail: msg, sql, params } : {}),
+      ...(isDebugEnabled(env) ? { detail: msg, sql, params } : {}),
     };
     const status = isNoTable || isNoColumn ? 500 : 500; // 统一 500，便于前端兜底
-    logDebug("D1 error:", msg, { sql, params });
+    logDebug(env, "D1 error:", msg, { sql, params });
     throw new HttpError(status, body);
   }
 }
@@ -208,7 +285,7 @@ async function assertTableExists(env, table) {
     // 抛出错误，由上层捕获并返回 500（提示需要先执行 schema.sql 到 remote）
     throw new HttpError(500, {
       error: "Database not initialized",
-      ...(DEBUG_ENABLED
+      ...(isDebugEnabled(env)
         ? {
             detail: `Missing table '${table}'. Execute schema.sql to the production D1 (use --env production --remote).`,
           }
@@ -246,8 +323,8 @@ function clampInt(v, min, max, fallback) {
   return Math.max(min, Math.min(max, n));
 }
 
-function logDebug(...args) {
-  if (DEBUG_ENABLED) {
+function logDebug(env, ...args) {
+  if (isDebugEnabled(env)) {
     // Cloudflare Workers 的 console 会在 wrangler tail 中显示
     try {
       console.log(...args);
@@ -267,6 +344,6 @@ class HttpError extends Error {
 addEventListener?.("unhandledrejection", (e) => {
   // 避免未处理的 Promise 拒绝导致 worker 崩溃
   try {
-    logDebug("unhandledrejection:", e?.reason || e);
+    console.log("unhandledrejection:", e?.reason || e);
   } catch {}
 });

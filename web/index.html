@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NGO Directory</title>
+  <title>NGO 目录</title>
   <style>
     :root { color-scheme: light dark; }
     html,body { margin:0; padding:0; }
@@ -36,8 +36,8 @@
 <body>
   <header>
     <div class="container">
-      <h1>NGO Directory</h1>
-      <a href="./index.html" style="color:#9ca3af;text-decoration:none;">Home</a>
+      <h1>NGO 目录</h1>
+      <a href="./index.html" style="color:#9ca3af;text-decoration:none;">首页</a>
     </div>
   </header>
   <main>
@@ -53,7 +53,7 @@
       <div id="pagination" class="pagination"></div>
     </section>
   </main>
-  <footer><small>&copy; <span id="year"></span> NGO Directory</small></footer>
+  <footer><small>&copy; <span id="year"></span> NGO 目录</small></footer>
 
   <script>
     console.log("index.html version:", document.documentElement.dataset.version);
@@ -64,8 +64,10 @@
         ? "http://127.0.0.1:8787"
         : "";
 
-    // CHANGE THIS to your deployed Worker origin:
-    const IMG_PROXY = "https://img.yourdomain.workers.dev"; // e.g. https://img.example.workers.dev
+    // IMPORTANT: Update this to your deployed image proxy Worker URL
+    // Deploy the image-proxy worker first: cd image-proxy && wrangler deploy
+    // Then update this URL to match your deployed worker (e.g., https://ngo-img-proxy.your-subdomain.workers.dev)
+    const IMG_PROXY = ""; // Leave empty to disable proxy temporarily
 
     const state = { query: "", page: 1, pageSize: 20, total: 0 };
 
@@ -214,9 +216,9 @@
       const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
       const root = document.getElementById("pagination");
       root.innerHTML = `
-        <button ${state.page <= 1 ? "disabled" : ""} id="prevPage">Prev</button>
-        <span>Page ${state.page} / ${totalPages}</span>
-        <button ${state.page >= totalPages ? "disabled" : ""} id="nextPage">Next</button>
+        <button ${state.page <= 1 ? "disabled" : ""} id="prevPage">上一页</button>
+        <span>第 ${state.page} / ${totalPages} 页</span>
+        <button ${state.page >= totalPages ? "disabled" : ""} id="nextPage">下一页</button>
       `;
       document.getElementById("prevPage").onclick = () => { if (state.page > 1) { state.page -= 1; loadOrgs(); } };
       document.getElementById("nextPage").onclick = () => { if (state.page < totalPages) { state.page += 1; loadOrgs(); } };
