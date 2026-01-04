@@ -1,458 +1,431 @@
-# NGO Going Out - Project Documentation
+# NGO Going Out - 中国 NGO 走出去数据平台
 
-A Cloudflare-based web application for tracking and searching Chinese NGOs with overseas operations. Built with Cloudflare Workers, D1 Database, and Pages.
+A comprehensive web platform for tracking and searching Chinese NGOs with overseas operations. Built with Cloudflare Pages, D1 Database, and Pages Functions.
 
-## Project Overview
+## 🌐 Live Website
 
-This project consists of:
-- **Cloudflare Worker API** (`worker/src/index.js`) - REST API for organizations and policies
-- **D1 Database** - SQLite database with full-text search
-- **Static Web Frontend** (`web/`) - HTML/CSS/JS interface
-- **Image Proxy Worker** (`image-proxy/`) - Proxy for organization logos
-- **Data Import Tools** (`tools/`) - Scripts to import CSV data
+**Main Website**: https://ngo-going-out.pages.dev
 
-## Prerequisites
+The platform provides:
+- Search and browse 439+ Chinese NGOs with international operations
+- Detailed organization profiles including mission, projects, and regions
+- Policy documents related to NGO overseas activities
+- Advanced filtering by country, sector, and organization type
 
-Before you begin, ensure you have:
+## 📋 Project Overview
+
+This project uses a modern serverless architecture:
+- **Cloudflare Pages** - Static site hosting with automatic GitHub deployment
+- **Pages Functions** - Serverless API endpoints (in `web/functions/api/`)
+- **D1 Database** - SQLite-based serverless database with full-text search
+- **GitHub Integration** - Automatic deployment on push to main branch
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Cloudflare Pages                         │
+│  ┌──────────────────────┐    ┌──────────────────────────┐  │
+│  │   Static Frontend    │    │   Pages Functions        │  │
+│  │   (HTML/CSS/JS)      │───▶│   (/api/*)               │  │
+│  │                      │    │                          │  │
+│  │  - index.html        │    │  - [[path]].js           │  │
+│  │  - org.html          │    │    (API routes)          │  │
+│  └──────────────────────┘    └──────────┬───────────────┘  │
+│                                          │                  │
+│                                          ▼                  │
+│                               ┌──────────────────────────┐  │
+│                               │   D1 Database            │  │
+│                               │   (SQLite)               │  │
+│                               │                          │  │
+│                               │  - orgs (439 records)    │  │
+│                               │  - policies (12 records) │  │
+│                               │  - Full-text search      │  │
+│                               └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 1. **Node.js** (v18 or later)
 2. **Wrangler CLI** - Cloudflare's command-line tool
    ```bash
    npm install -g wrangler
    ```
-3. **Cloudflare Account** with Workers and Pages enabled
+3. **Cloudflare Account** with Pages and D1 enabled
 4. **Wrangler Authentication**
    ```bash
    wrangler login
    ```
 
-## Project Structure
+### Local Development
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd ngo_going_out
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Create a development D1 database**
+   ```bash
+   wrangler d1 create ngo_going_out_dev
+   ```
+
+   Update `wrangler.toml` with the database ID returned.
+
+4. **Initialize database schema**
+   ```bash
+   wrangler d1 execute ngo_going_out_dev --file=d1/schema.sql
+   ```
+
+5. **Import sample data** (optional)
+   ```bash
+   export D1_DB_NAME=ngo_going_out_dev
+   node tools/import_orgs.js data/orgs_clean.csv
+   node tools/import_policies.js data/policies.csv
+   ```
+
+6. **Start local development**
+   ```bash
+   cd web
+   npx wrangler pages dev . --d1 database=YOUR_DATABASE_ID
+   ```
+
+   Access at `http://localhost:8788`
+
+## 📁 Project Structure
 
 ```
 ngo_going_out/
-├── worker/src/index.js    # Main API Worker
-├── web/                   # Static frontend files
-│   ├── index.html        # Main search page
-│   └── org.html          # Organization detail page
-├── image-proxy/          # Image proxy worker
-├── d1/schema.sql         # Database schema
-├── tools/                # Data import scripts
-│   ├── import_orgs.js    # Import organizations
-│   ├── import_policies.js # Import policies
-│   └── helpers.js        # Shared utilities
-└── wrangler.toml         # Cloudflare configuration
+├── web/                          # Frontend and Pages Functions
+│   ├── functions/                # Pages Functions (API)
+│   │   └── api/
+│   │       └── [[path]].js      # Catch-all API route handler
+│   ├── index.html               # Main search page
+│   ├── org.html                 # Organization detail page
+│   ├── _routes.json             # Pages routing configuration
+│   ├── _headers                 # CORS headers
+│   └── wrangler.toml            # Pages configuration
+├── worker/                       # Legacy Worker (optional)
+│   └── src/index.js             # Worker API (backup)
+├── d1/
+│   └── schema.sql               # Database schema
+├── tools/                        # Data import utilities
+│   ├── import_orgs.js           # Import organizations from CSV
+│   ├── import_policies.js       # Import policies from CSV
+│   └── helpers.js               # Shared utilities
+├── data/                         # Data files (not in repo)
+│   ├── orgs_clean.csv           # Organizations data
+│   └── policies.csv             # Policies data
+└── wrangler.toml                # Worker configuration (legacy)
 ```
 
-## Local Development Setup
+## 🗄️ Database Schema
 
-### 1. Install Dependencies
+The D1 database contains the following tables:
 
-```bash
-npm install
-```
+### `orgs` - Organizations
+Main table storing NGO information with 439 records.
 
-### 2. Create D1 Database (Development)
+Key fields:
+- `id` - Primary key
+- `org_name` - Organization name (Chinese)
+- `founded_date` - Founding date
+- `go_global_date` - Date of international expansion
+- `leaders` - Organization leaders
+- `reg_location` - Registration location
+- `overseas_regions` - Countries/regions of operation
+- `overseas_projects` - International projects
+- `overseas_services` - Services provided overseas
+- `mission` - Organization mission statement
 
-The development database is already configured in `wrangler.toml`:
-- Database name: `ngo_going_out_dev`
-- Database ID: `55d3a005-b852-4706-90bf-3fc116393707`
+### `policies` - Policy Documents
+Policy documents related to NGO overseas activities (12 records).
 
-If you need to create a new dev database:
+### `orgs_facets` - Filters
+Extracted facets for filtering (countries, sectors).
 
-```bash
-wrangler d1 create ngo_going_out_dev
-```
+### `orgs_fts` & `policies_fts` - Full-Text Search
+SQLite FTS5 tables for fast text search.
 
-Update the `database_id` in `wrangler.toml` under `[[d1_databases]]` section.
+## 🌍 Deployment to Cloudflare Pages
 
-### 3. Initialize Database Schema
+### Option 1: GitHub Integration (Recommended)
 
-Apply the schema to your development database:
+1. **Push your code to GitHub**
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
 
-```bash
-wrangler d1 execute ngo_going_out_dev --file=d1/schema.sql
-```
+2. **Create Pages project in Cloudflare Dashboard**
+   - Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
+   - Navigate to **Workers & Pages** > **Create application** > **Pages**
+   - Connect your GitHub repository
+   - Configure build settings:
+     - **Build command**: (leave empty)
+     - **Build output directory**: `web`
+     - **Root directory**: `/`
 
-This creates:
-- `orgs` table - Organization data
-- `policies` table - Policy documents
-- `orgs_facets` table - Country/sector filters
-- `orgs_fts` and `policies_fts` - Full-text search tables
-- Indexes and triggers for automatic FTS sync
+3. **Configure D1 Binding**
+   - In your Pages project, go to **Settings** > **Functions**
+   - Scroll to **D1 database bindings**
+   - Click **Add binding**
+   - Set:
+     - **Variable name**: `database`
+     - **D1 database**: Select your production database
+   - Click **Save**
 
-### 4. Start Local Development Server
+4. **Deploy**
+   - Push to GitHub main branch
+   - Cloudflare automatically deploys your changes
+   - Your site will be available at `https://your-project.pages.dev`
 
-```bash
-wrangler dev
-```
-
-This starts the Worker API at `http://localhost:8787`
-
-Test the API:
-```bash
-curl http://localhost:8787/api/health
-```
-
-### 5. Serve Frontend Locally
-
-In a separate terminal, serve the web directory:
+### Option 2: Direct Deployment with Wrangler
 
 ```bash
 cd web
-python3 -m http.server 8080
+npx wrangler pages deploy . --project-name=ngo-going-out
 ```
 
-Or use any static file server. Access at `http://localhost:8080`
+**Note**: D1 bindings must still be configured in the Dashboard.
 
-## Data Import
+## 🔌 API Endpoints
 
-### Preparing Your Data
+All API endpoints are available at `https://ngo-going-out.pages.dev/api/*`
 
-The import scripts expect CSV files with specific headers:
-
-**Organizations CSV** (`orgs.csv`):
-Required columns (Chinese headers):
-- 编号, 组织名称, 中促会, 民促会, 联合国, 成立时间, 出海时间
-- 领导人, 重要员工, 资本类型, 注册地, 注册形式
-- 捐赠金额（出海前）标注年份, 捐赠金额（出海后）
-- 官网的组织理念, 组织结构（参考年报）
-- 是否有独立的海外办公室——组织结构
-- 官网关于海外项目的组织理念——目标
-- 海外项目的名称, 海外涉及的地区, 海外服务内容, 服务形式
-- 主要成员是否有官方背景, 主要信息来源
-- 是否有网上披露, 是否持续性披露, 走出去程度
-
-**Policies CSV** (`policies.csv`):
-Required columns (Chinese headers):
-- 编号, 发布日期, 标题, 文件类型
-- 发文机关1, 发文机关2, 发文机关3, 发文机关4
-- 链接
-
-### Import Organizations
-
-```bash
-# Set the database name
-export D1_DB_NAME=ngo_going_out_dev
-
-# Import organizations from CSV
-node tools/import_orgs.js path/to/orgs.csv
-```
-
-The script will:
-- Parse the CSV file
-- Insert/update organizations in the `orgs` table
-- Automatically populate `orgs_facets` for filtering
-- Trigger FTS index updates
-
-Progress is shown every 100 records.
-
-### Import Policies
-
-```bash
-# Set the database name
-export D1_DB_NAME=ngo_going_out_dev
-
-# Import policies from CSV
-node tools/import_policies.js path/to/policies.csv
-```
-
-### Verify Data Import
-
-Check the data in your D1 database:
-
-```bash
-# Count organizations
-wrangler d1 execute ngo_going_out_dev --command="SELECT COUNT(*) FROM orgs"
-
-# Count policies
-wrangler d1 execute ngo_going_out_dev --command="SELECT COUNT(*) FROM policies"
-
-# View sample organizations
-wrangler d1 execute ngo_going_out_dev --command="SELECT id, org_name, overseas_regions FROM orgs LIMIT 5"
-```
-
-## Cloudflare Production Setup
-
-### 1. Create Production D1 Database
-
-```bash
-wrangler d1 create ngo_going_out
-```
-
-This will output a database ID. Update `wrangler.toml` under `[env.production.d1_databases]`:
-
-```toml
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "ngo_going_out"
-database_id = "YOUR_PRODUCTION_DATABASE_ID"
-```
-
-### 2. Initialize Production Database
-
-Apply the schema to production:
-
-```bash
-wrangler d1 execute ngo_going_out --env production --file=d1/schema.sql
-```
-
-### 3. Import Data to Production
-
-```bash
-# Set production database name
-export D1_DB_NAME=ngo_going_out
-
-# Import organizations
-node tools/import_orgs.js path/to/orgs.csv
-
-# Import policies
-node tools/import_policies.js path/to/policies.csv
-```
-
-### 4. Deploy API Worker
-
-Deploy the Worker to production:
-
-```bash
-wrangler deploy --env production
-```
-
-This deploys the Worker from `worker/src/index.js` with production configuration.
-
-The Worker will be available at: `https://ngo-api.YOUR_SUBDOMAIN.workers.dev`
-
-### 5. Deploy Image Proxy Worker
-
-```bash
-cd image-proxy
-wrangler deploy --env production
-cd ..
-```
-
-The image proxy will be available at: `https://ngo-img-proxy.YOUR_SUBDOMAIN.workers.dev`
-
-### 6. Deploy Frontend to Cloudflare Pages
-
-#### Option A: Using Wrangler
-
-```bash
-wrangler pages deploy web --project-name=ngo-going-out
-```
-
-#### Option B: Using Cloudflare Dashboard
-
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Navigate to **Workers & Pages** > **Create application** > **Pages**
-3. Connect your Git repository or upload files directly
-4. Set build settings:
-   - **Build command**: (leave empty - static site)
-   - **Build output directory**: `/web`
-   - **Root directory**: `/`
-
-#### Configure Pages Environment Variables
-
-In the Pages settings, add these environment variables:
-
-- `API_BASE_URL`: Your Worker API URL (e.g., `https://ngo-api.YOUR_SUBDOMAIN.workers.dev`)
-- `IMAGE_PROXY_URL`: Your image proxy URL (e.g., `https://ngo-img-proxy.YOUR_SUBDOMAIN.workers.dev`)
-
-### 7. Update Frontend API Endpoints
-
-Edit `web/index.html` and `web/org.html` to point to your production API:
-
-```javascript
-// Replace localhost URLs with production URLs
-const API_BASE = 'https://ngo-api.YOUR_SUBDOMAIN.workers.dev';
-```
-
-### 8. Configure Custom Domain (Optional)
-
-#### For Pages:
-1. Go to your Pages project > **Custom domains**
-2. Add your domain (e.g., `ngo.yourdomain.com`)
-3. Follow DNS configuration instructions
-
-#### For Workers:
-1. Go to your Worker > **Settings** > **Triggers**
-2. Add a custom domain or route
-
-## Testing
-
-### Test API Endpoints
-
-Once deployed, test your API:
-
-```bash
-# Health check
-curl https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/health
-
-# List organizations (with pagination)
-curl "https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/orgs?page=1&limit=20"
-
-# Search organizations
-curl "https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/orgs?q=环保"
-
-# Get organization details
-curl https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/orgs/1
-
-# Get facets (filters)
-curl https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/orgs/facets
-
-# List policies
-curl "https://ngo-api.YOUR_SUBDOMAIN.workers.dev/api/policies?page=1&limit=20"
-```
-
-### Test Frontend
-
-1. Open your Pages URL in a browser
-2. Test search functionality
-3. Test organization detail pages
-4. Verify images load through the proxy
-5. Test pagination and filters
-
-## API Documentation
-
-### Endpoints
-
-#### `GET /api/health`
-Health check endpoint with database status.
+### `GET /api/health`
+Health check endpoint.
 
 **Response:**
 ```json
 {
   "ok": true,
-  "time": "2024-01-03T12:00:00.000Z",
-  "db": "ok"
+  "time": "2026-01-04T04:47:48.970Z",
+  "db": "ok",
+  "count": 439
 }
 ```
 
-#### `GET /api/orgs`
-List and search organizations.
+### `GET /api/orgs`
+List and search organizations with pagination.
 
 **Query Parameters:**
-- `q` - Search query (searches name, mission, regions, services)
 - `page` - Page number (default: 1)
-- `limit` - Results per page (default: 20, max: 100)
-- `country` - Filter by country
-- `sector` - Filter by sector
+- `page_size` - Results per page (default: 20)
+- `query` - Search term (searches name and regions)
+
+**Example:**
+```bash
+curl "https://ngo-going-out.pages.dev/api/orgs?page=1&page_size=5"
+```
 
 **Response:**
 ```json
 {
-  "results": [...],
-  "total": 150,
+  "items": [
+    {
+      "id": 1,
+      "org_name": "爱德基金会",
+      "founded_date": "1985-4-1",
+      "overseas_regions": "...",
+      ...
+    }
+  ],
+  "total": 439,
   "page": 1,
-  "limit": 20
+  "page_size": 5
 }
 ```
 
-#### `GET /api/orgs/:id`
-Get organization details by ID.
+### `GET /api/orgs/:id`
+Get detailed information about a specific organization.
+
+**Example:**
+```bash
+curl "https://ngo-going-out.pages.dev/api/orgs/1"
+```
 
 **Response:**
 ```json
 {
   "id": 1,
-  "org_name": "Organization Name",
-  "founded_date": "2010",
-  "overseas_regions": "Africa, Asia",
+  "org_name": "爱德基金会",
+  "founded_date": "1985-4-1",
+  "leaders": "丘仲辉",
+  "overseas_regions": "...",
+  "overseas_projects": "...",
   ...
 }
 ```
 
-#### `GET /api/orgs/facets`
-Get available filters (countries and sectors).
+## 📊 Data Import
 
-**Response:**
+### Preparing CSV Data
+
+The import scripts expect CSV files with specific Chinese headers.
+
+**Organizations CSV** (`orgs_clean.csv`):
+- 编号, 组织名称, 中促会, 民促会, 联合国
+- 成立时间, 出海时间, 领导人, 重要员工
+- 资本类型, 注册地, 注册形式
+- 捐赠金额（出海前）标注年份, 捐赠金额（出海后）
+- 官网的组织理念, 组织结构（参考年报）
+- 是否有独立的海外办公室——组织结构
+- 官网关于海外项目的组织理念——目标
+- 海外项目的名称, 海外涉及的地区
+- 海外服务内容, 服务形式
+- 主要成员是否有官方背景, 主要信息来源
+- 是否有网上披露, 是否持续性披露, 走出去程度
+
+**Policies CSV** (`policies.csv`):
+- 编号, 发布日期, 标题, 文件类型
+- 发文机关1, 发文机关2, 发文机关3, 发文机关4
+- 链接
+
+### Import to Production Database
+
+1. **Set database name**
+   ```bash
+   export D1_DB_NAME=ngo_going_out
+   ```
+
+2. **Import organizations**
+   ```bash
+   node tools/import_orgs.js data/orgs_clean.csv
+   ```
+
+3. **Import policies**
+   ```bash
+   node tools/import_policies.js data/policies.csv
+   ```
+
+The scripts use `--remote` flag to import directly to Cloudflare D1. Progress is shown during import.
+
+### Verify Import
+
+```bash
+# Check organization count
+wrangler d1 execute ngo_going_out --remote --command "SELECT COUNT(*) FROM orgs"
+
+# Check policies count
+wrangler d1 execute ngo_going_out --remote --command "SELECT COUNT(*) FROM policies"
+
+# View sample data
+wrangler d1 execute ngo_going_out --remote --command "SELECT id, org_name, overseas_regions FROM orgs LIMIT 5"
+```
+
+## 🛠️ Configuration Files
+
+### `web/wrangler.toml`
+Pages configuration with D1 binding:
+
+```toml
+name = "ngo-going-out"
+pages_build_output_dir = "."
+compatibility_date = "2024-10-01"
+
+[[d1_databases]]
+binding = "database"
+database_name = "ngo_going_out"
+database_id = "YOUR_DATABASE_ID"
+```
+
+### `web/_routes.json`
+Routes configuration to ensure `/api/*` requests go to Functions:
+
 ```json
 {
-  "countries": ["China", "Kenya", ...],
-  "sectors": ["Education", "Healthcare", ...]
+  "version": 1,
+  "include": ["/api/*"],
+  "exclude": []
 }
 ```
 
-#### `GET /api/policies`
-List and search policies.
+### `web/_headers`
+CORS headers for API access:
 
-**Query Parameters:**
-- `q` - Search query
-- `page` - Page number
-- `limit` - Results per page
+```
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type
+```
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
-### Database Connection Issues
+### API Returns HTML Instead of JSON
 
-If you see "db: unavailable" in health check:
+**Problem**: `/api/*` endpoints return HTML (the index.html page) instead of JSON.
 
-1. Verify D1 database exists:
-   ```bash
-   wrangler d1 list
-   ```
+**Solution**:
+- Ensure D1 binding is configured in Cloudflare Dashboard
+- Check that binding variable name is `database`
+- Verify `_routes.json` is present in the `web/` directory
+- Redeploy after configuration changes
 
-2. Check `wrangler.toml` has correct database_id
+### Database Connection Errors
 
-3. Ensure schema is applied:
-   ```bash
-   wrangler d1 execute DB_NAME --file=d1/schema.sql
-   ```
+**Problem**: API returns "env.database is undefined" or similar errors.
+
+**Solution**:
+1. Go to Pages project **Settings** > **Functions**
+2. Add D1 database binding:
+   - Variable name: `database`
+   - D1 database: Select your database
+3. Save and wait for automatic redeployment
 
 ### Import Script Errors
 
-**Error: "Please set D1_DB_NAME env var"**
+**Error**: "Please set D1_DB_NAME env var"
 ```bash
-export D1_DB_NAME=ngo_going_out_dev
+export D1_DB_NAME=ngo_going_out
 ```
 
-**Error: "Provide a CSV file path"**
-```bash
-node tools/import_orgs.js path/to/your/file.csv
-```
-
-**CSV parsing errors:**
+**Error**: CSV parsing errors
 - Ensure CSV uses UTF-8 encoding
-- Check that all required column headers are present
+- Check all required column headers are present
 - Verify no extra commas or malformed rows
 
 ### CORS Issues
 
 If frontend can't connect to API:
+- Check `_headers` file is present
+- Verify CORS headers in `web/functions/api/[[path]].js`
+- Check browser console for specific CORS errors
 
-1. Check `CORS_ENABLED` is `true` in `worker/src/index.js`
-2. Verify API URL is correct in frontend code
-3. Check browser console for specific CORS errors
+### Deployment Fails
 
-### Deployment Issues
-
-**Worker deployment fails:**
+**Check authentication**:
 ```bash
-# Check wrangler is logged in
 wrangler whoami
+```
 
-# Re-authenticate if needed
+**Re-authenticate if needed**:
+```bash
 wrangler login
 ```
 
-**Pages deployment fails:**
-```bash
-# Ensure you're in the project root
-wrangler pages deploy web --project-name=ngo-going-out
-```
-
-## Maintenance
-
-### Updating Data
+## 🔄 Updating Data
 
 To update organization or policy data:
 
 1. Export updated CSV from your data source
-2. Run import script (it uses UPSERT, so existing records are updated):
+2. Run import script (uses UPSERT, so existing records are updated):
    ```bash
    export D1_DB_NAME=ngo_going_out
    node tools/import_orgs.js updated_orgs.csv
    ```
 
-### Database Backups
+## 📦 Database Backups
 
 Export your D1 database:
 
@@ -461,39 +434,28 @@ Export your D1 database:
 wrangler d1 export ngo_going_out --output=backup.sql
 
 # Or query specific tables
-wrangler d1 execute ngo_going_out --command="SELECT * FROM orgs" --json > orgs_backup.json
+wrangler d1 execute ngo_going_out --remote --command="SELECT * FROM orgs" --json > orgs_backup.json
 ```
 
-### Monitoring
+## 📚 Additional Resources
 
-1. **Cloudflare Dashboard**: Monitor Worker requests, errors, and performance
-2. **D1 Analytics**: View database query performance
-3. **Pages Analytics**: Track frontend traffic
-
-## Environment Variables Summary
-
-### Worker (wrangler.toml)
-- `ENV`: "development" or "production"
-- `DEBUG_ENABLED`: "true" or "false"
-
-### Pages (Cloudflare Dashboard)
-- `API_BASE_URL`: Worker API URL
-- `IMAGE_PROXY_URL`: Image proxy Worker URL
-
-### Local Development (Shell)
-- `D1_DB_NAME`: Database name for import scripts
-
-## Additional Resources
-
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Cloudflare D1 Documentation](https://developers.cloudflare.com/d1/)
 - [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages/)
+- [Cloudflare D1 Documentation](https://developers.cloudflare.com/d1/)
+- [Pages Functions Documentation](https://developers.cloudflare.com/pages/functions/)
 - [Wrangler CLI Documentation](https://developers.cloudflare.com/workers/wrangler/)
 
-## Support
+## 📝 License
+
+This project is for research and educational purposes.
+
+## 🤝 Support
 
 For issues or questions:
 1. Check the troubleshooting section above
 2. Review Cloudflare documentation
-3. Check Wrangler logs: `wrangler tail` (for live Worker logs)
+3. Check deployment logs in Cloudflare Dashboard
 
+---
+
+**Last Updated**: January 2026
+**Live Site**: https://ngo-going-out.pages.dev
