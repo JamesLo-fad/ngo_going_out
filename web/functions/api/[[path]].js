@@ -39,18 +39,22 @@ export async function onRequest(context) {
 
       let sql = 'SELECT * FROM orgs';
       let countSql = 'SELECT COUNT(*) as total FROM orgs';
+      const params = [];
 
       if (query) {
-        const where = ` WHERE org_name LIKE '%${query}%' OR overseas_regions LIKE '%${query}%'`;
-        sql += where;
-        countSql += where;
+        const searchPattern = `%${query}%`;
+        sql += ' WHERE org_name LIKE ? OR overseas_regions LIKE ?';
+        countSql += ' WHERE org_name LIKE ? OR overseas_regions LIKE ?';
+        params.push(searchPattern, searchPattern);
       }
 
-      sql += ` LIMIT ${pageSize} OFFSET ${offset}`;
+      sql += ' LIMIT ? OFFSET ?';
+      const queryParams = [...params, pageSize, offset];
+      const countParams = [...params];
 
       const [items, total] = await Promise.all([
-        env.database.prepare(sql).all(),
-        env.database.prepare(countSql).first()
+        env.database.prepare(sql).bind(...queryParams).all(),
+        env.database.prepare(countSql).bind(...countParams).first()
       ]);
 
       return new Response(JSON.stringify({
