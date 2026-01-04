@@ -1,40 +1,101 @@
-// Catch-all function for /api/* routes
+// Direct D1 database access - bypassing Worker
 export async function onRequest(context) {
   const { request, env } = context;
+  const url = new URL(request.url);
 
-  console.log('[API Handler] Request:', request.url);
+  // CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 
-  // Check if Service Binding is available
-  if (!env.API) {
-    console.error('[API Handler] Service Binding not available');
-    return new Response(JSON.stringify({
-      error: 'Service Binding not configured',
-      hint: 'Please configure API service binding in Pages settings'
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
-    });
+  // Handle OPTIONS
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
-    console.log('[API Handler] Calling Worker via Service Binding');
-    const response = await env.API.fetch(request);
-    console.log('[API Handler] Worker response:', response.status);
-    return response;
+    // Health check
+    if (url.pathname === '/api/health') {
+      const result = await env.database.prepare('SELECT COUNT(*) as count FROM orgs').first();
+      return new Response(JSON.stringify({
+        ok: true,
+        time: new Date().toISOString(),
+        db: 'ok',
+        count: result.count
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // List orgs
+    if (url.pathname === '/api/orgs') {
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const pageSize = parseInt(url.searchParams.get('page_size') || '20');
+      const query = url.searchParams.get('query') || '';
+      const offset = (page - 1) * pageSize;
+
+      let sql = 'SELECT * FROM orgs';
+      let countSql = 'SELECT COUNT(*) as total FROM orgs';
+
+      if (query) {
+        const where = ` WHERE org_name LIKE '%${query}%' OR overseas_regions LIKE '%${query}%'`;
+        sql += where;
+        countSql += where;
+      }
+
+      sql += ` LIMIT ${pageSize} OFFSET ${offset}`;
+
+      const [items, total] = await Promise.all([
+        env.database.prepare(sql).all(),
+        env.database.prepare(countSql).first()
+      ]);
+
+      return new Response(JSON.stringify({
+        items: items.results || [],
+        total: total.total || 0,
+        page,
+        page_size: pageSize
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Get org detail
+    const orgMatch = url.pathname.match(/^\/api\/orgs\/(\d+)$/);
+    if (orgMatch) {
+      const id = parseInt(orgMatch[1]);
+      const org = await env.database.prepare('SELECT * FROM orgs WHERE id = ?').bind(id).first();
+
+      if (!org) {
+        return new Response(JSON.stringify({ error: 'Not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
+      }
+
+      return new Response(JSON.stringify(org), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+      });
+    }
+
+    // Not found
+    return new Response(JSON.stringify({ error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
+
   } catch (error) {
-    console.error('[API Handler] Error:', error);
     return new Response(JSON.stringify({
-      error: 'Service Binding failed',
+      error: 'Internal server error',
       message: error.message
     }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      }
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
     });
   }
 }
