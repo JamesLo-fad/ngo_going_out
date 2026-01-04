@@ -1,106 +1,63 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-version="v5-with-proxy">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>NGO 详情</title>
-  <style>
-    :root { color-scheme: light dark; }
-    html,body { margin:0; padding:0; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "PingFang SC", "Noto Sans CJK", sans-serif; background:#fafafa; color:#111; }
-    header { padding:16px; background:#111827; color:#fff; }
-    header .container { max-width:960px; margin:0 auto; padding:0 16px; display:flex; align-items:center; gap:12px; }
-    header a { color:#9ca3af; text-decoration:none; }
-    main { max-width:960px; margin:16px auto; padding:0 16px; }
-    .org-hero { display:grid; grid-template-columns: 160px 1fr; gap:16px; align-items:center; }
-    .logo-outer { width:160px; height:160px; display:flex; align-items:center; justify-content:center; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; position:relative; background:#fff; }
-    .logo-outer::before { content:""; position:absolute; inset:0; background: conic-gradient(#f3f4f6 0 25%, #e5e7eb 0 50%) 0 0 / 18px 18px; }
-    .logo-outer img { position:relative; width:100%; height:100%; object-fit:contain; filter: drop-shadow(0 0 1px rgba(0,0,0,.25)); }
-    .org-hero h1 { margin:0; font-size:26px; line-height:1.2; }
-    .org-sections { margin-top:24px; display:grid; gap:18px; }
-    section h2 { margin:0 0 8px 0; font-size:18px; }
-    .row { display:grid; grid-template-columns: 180px 1fr; gap:10px; padding:8px 0; border-bottom:1px dashed #eee; }
-    .label { color:#6b7280; }
-    @media (max-width: 640px) {
-      .org-hero { grid-template-columns: 1fr; text-align:center; }
-      .logo-outer { margin: 0 auto; }
-      .row { grid-template-columns: 1fr; }
-    }
-  </style>
+  <title>NGO 详情 - 中国 NGO 走出去数据平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-    <div class="container">
-      <a href="./index.html">← 返回</a>
-      <h1 style="margin:0;font-size:18px;">NGO 详情</h1>
+<body class="bg-gray-50">
+  <!-- Navigation -->
+  <nav class="bg-gray-900 text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+      <div class="flex items-center gap-8">
+        <a href="./index.html" class="text-xl font-bold hover:text-blue-400 transition-colors">NGO 数据平台</a>
+        <div class="flex gap-6">
+          <a href="./index.html" class="text-gray-300 hover:text-white transition-colors">组织搜索</a>
+          <a href="./policies.html" class="text-gray-300 hover:text-white transition-colors">政策搜索</a>
+        </div>
+      </div>
     </div>
-  </header>
+  </nav>
 
-  <main>
-    <div id="org-detail">加载中...</div>
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <div id="org-detail" class="text-center py-12">
+      <div class="animate-pulse">加载中...</div>
+    </div>
   </main>
 
   <script>
-    console.log("org.html version:", document.documentElement.dataset.version);
-
-    // Use relative paths - Service Binding via Pages Functions
     const API_BASE = "";
 
-    // IMPORTANT: Update this to your deployed image proxy Worker URL
-    // Deploy the image-proxy worker first: cd image-proxy && wrangler deploy
-    // Then update this URL to match your deployed worker (e.g., https://ngo-img-proxy.your-subdomain.workers.dev)
-    const IMG_PROXY = ""; // Leave empty to disable proxy temporarily
-
-    const PLACEHOLDER_LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="200"><rect width="100%" height="100%" fill="#f2f4f7"/><text x="50%" y="52%" font-family="system-ui,Arial" font-size="20" text-anchor="middle" fill="#98a2b3">No Logo</text></svg>'
-    );
-
-    function escapeHtml(s){ return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-    function yesNo(v){ return v === 1 ? "是" : v === 0 ? "否" : ""; }
-
-    function driveToDirect(url) {
-      if (!url) return null;
-      const m = url.match(/\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
-      return m ? `https://drive.google.com/uc?export=view&id=${m[1]}` : url;
-    }
-    function throughProxy(src) {
-      if (!src) return null;
-      try {
-        const u = new URL(src);
-        const p = new URL(IMG_PROXY);
-        p.searchParams.set("url", src);
-        return p.toString();
-      } catch { return src; }
-    }
-    function normalizeLogoUrl(rawUrl) {
-      const direct = driveToDirect((rawUrl || "").trim());
-      if (!direct) return null;
-      if (/^data:image\//i.test(direct)) return direct;
-      if (/^https?:\/\//i.test(direct)) return throughProxy(direct);
-      return null;
+    // Helper functions
+    function escapeHtml(s) {
+      return (s || "").replace(/[&<>\"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
     }
 
-    function makeLogoImg(rawUrl, altText = "logo") {
-      const img = document.createElement("img");
-      img.alt = altText;
-      img.loading = "lazy";
-      img.decoding = "async";
-      img.referrerPolicy = "no-referrer";
-
-      const finalSrc = normalizeLogoUrl(rawUrl) || PLACEHOLDER_LOGO;
-
-      img.addEventListener("load", () => console.log("[detail logo loaded]", img.currentSrc));
-      img.addEventListener("error", (e) => { console.warn("[detail logo error]", img.currentSrc, e); img.onerror=null; img.src=PLACEHOLDER_LOGO; });
-
-      img.src = finalSrc;
-      return img;
+    // Convert 1/0 to 是/否
+    function yesNo(v) {
+      if (v === 1 || v === '1') return '<span class="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">是</span>';
+      if (v === 0 || v === '0') return '<span class="inline-block bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">否</span>';
+      return '<span class="text-gray-400">-</span>';
     }
 
+    // Handle null/empty values
+    function displayValue(v) {
+      if (v === null || v === undefined || v === '' || v === 'null') {
+        return '<span class="text-gray-400">-</span>';
+      }
+      return escapeHtml(String(v));
+    }
+
+    // Get org ID from URL
     const params = new URLSearchParams(location.search);
     const id = params.get("id");
 
     if (!id) {
-      document.getElementById("org-detail").innerHTML = "<p>缺少 id。</p>";
+      document.getElementById("org-detail").innerHTML = '<div class="text-red-600">缺少组织 ID</div>';
     } else {
       loadDetail(id);
     }
@@ -108,61 +65,108 @@
     async function loadDetail(id) {
       try {
         const res = await fetch(`${API_BASE}/api/orgs/${encodeURIComponent(id)}`, { cache: "no-store" });
-        if (!res.ok) { document.getElementById("org-detail").innerHTML = "<p>未找到该组织。</p>"; return; }
-        const o = await res.json();
-        renderDetail(o);
+        if (!res.ok) {
+          document.getElementById("org-detail").innerHTML = '<div class="text-red-600">未找到该组织</div>';
+          return;
+        }
+        const org = await res.json();
+        renderDetail(org);
       } catch (err) {
         console.error(err);
-        document.getElementById("org-detail").innerHTML = "<p>加载失败。</p>";
+        document.getElementById("org-detail").innerHTML = '<div class="text-red-600">加载失败，请稍后重试</div>';
       }
-    }
-
-    function section(title, rows) {
-      const content = rows.filter(Boolean).join("");
-      if (!content) return "";
-      return `<section><h2>${escapeHtml(title)}</h2>${content}</section>`;
-    }
-    function row(label, value) {
-      if (value === null || value === undefined || value === "") return "";
-      return `<div class="row"><div class="label">${escapeHtml(label)}</div><div>${escapeHtml(String(value))}</div></div>`;
     }
 
     function renderDetail(o) {
       const container = document.getElementById("org-detail");
-      container.innerHTML = "";
 
-      const hero = document.createElement("div");
-      hero.className = "org-hero";
+      container.innerHTML = `
+        <!-- Organization Header -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+          <div class="flex items-start gap-6">
+            <div class="flex-shrink-0">
+              ${o.logo_url && o.logo_url !== '-' ?
+                `<img src="${escapeHtml(o.logo_url)}" alt="Logo" class="w-32 h-32 object-contain rounded-lg border border-gray-200" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"128\\" height=\\"128\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f3f4f6\\"/><text x=\\"50%\\" y=\\"50%\\" font-family=\\"Arial\\" font-size=\\"14\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%239ca3af\\">No Logo</text></svg>'" />` :
+                `<div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">暂无图片</div>`
+              }
+            </div>
+            <div class="flex-1">
+              <h1 class="text-3xl font-bold text-gray-900 mb-2">${displayValue(o.org_name)}</h1>
+              <div class="text-gray-600">编号：${displayValue(o.id)}</div>
+            </div>
+          </div>
+        </div>
 
-      const logo = document.createElement("div");
-      logo.className = "logo-outer";
-      logo.appendChild(makeLogoImg(o.logo_url, `${o.org_name || ""} logo`));
+        <!-- Basic Information -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">📋 基本信息</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex"><span class="font-medium text-gray-700 w-40">中促会：</span><span>${yesNo(o.in_cnie)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">民促会：</span><span>${yesNo(o.in_cace)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">联合国：</span><span>${yesNo(o.in_un)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">成立时间：</span><span>${displayValue(o.founded_date)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">出海时间：</span><span>${displayValue(o.go_global_date)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">领导人：</span><span>${displayValue(o.leaders)}</span></div>
+            <div class="flex col-span-full"><span class="font-medium text-gray-700 w-40">重要员工：</span><span>${displayValue(o.key_staff)}</span></div>
+          </div>
+        </div>
 
-      const title = document.createElement("h1");
-      title.textContent = o.org_name || "(未命名)";
+        <!-- Registration Information -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">🏛️ 注册信息</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex"><span class="font-medium text-gray-700 w-40">注册地：</span><span>${displayValue(o.reg_location)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">注册形式：</span><span>${displayValue(o.reg_type)}</span></div>
+            <div class="flex col-span-full"><span class="font-medium text-gray-700 w-40">资本类型：</span><span>${displayValue(o.capital_type)}</span></div>
+          </div>
+        </div>
 
-      hero.appendChild(logo);
-      hero.appendChild(title);
+        <!-- Overseas Information -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">🌍 海外信息</h2>
+          <div class="space-y-3">
+            <div class="flex"><span class="font-medium text-gray-700 w-48">是否有独立的海外办公室：</span><span>${yesNo(o.has_overseas_office)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-48">海外涉及的地区：</span><span>${displayValue(o.overseas_regions)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-48">海外项目的名称：</span><span>${displayValue(o.overseas_projects)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-48">海外服务内容：</span><span>${displayValue(o.overseas_services)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-48">服务形式：</span><span>${displayValue(o.service_mode)}</span></div>
+            <div class="border-t pt-3 mt-3">
+              <div class="font-medium text-gray-700 mb-2">官网关于海外项目的组织理念——目标：</div>
+              <div class="text-gray-600 whitespace-pre-wrap">${displayValue(o.overseas_mission)}</div>
+            </div>
+          </div>
+        </div>
 
-      const sections = document.createElement("div");
-      sections.className = "org-sections";
-      sections.innerHTML = [
-        section("基本信息", [
-          row("注册地", o.reg_location),
-          row("注册类型", o.reg_type),
-          row("成立时间", o.founded_date),
-        ]),
-        section("海外", [
-          row("走出去水平", o.go_out_level),
-          row("服务模式", o.service_mode),
-          row("地区", o.overseas_regions),
-          row("项目", o.overseas_projects),
-          row("是否有海外办公室", yesNo(o.has_overseas_office)),
-        ]),
-      ].filter(Boolean).join("");
+        <!-- Disclosure Information -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">📊 披露信息</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex"><span class="font-medium text-gray-700 w-40">是否有网上披露：</span><span>${yesNo(o.disclosed_online)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">是否持续性披露：</span><span>${yesNo(o.disclosed_continuous)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">走出去程度：</span><span>${displayValue(o.go_out_level)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">主要信息来源：</span><span>${displayValue(o.sources)}</span></div>
+          </div>
+        </div>
 
-      container.appendChild(hero);
-      container.appendChild(sections);
+        <!-- Organization Mission -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">🎯 组织理念</h2>
+          <div class="text-gray-600 whitespace-pre-wrap">${displayValue(o.mission)}</div>
+        </div>
+
+        <!-- Organization Structure -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">🏢 组织结构</h2>
+          <div class="text-gray-600 whitespace-pre-wrap">${displayValue(o.org_structure)}</div>
+        </div>
+
+        <!-- Back Button -->
+        <div class="text-center mt-8">
+          <a href="./index.html" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-colors font-medium">
+            ← 返回组织列表
+          </a>
+        </div>
+      `;
     }
   </script>
 </body>

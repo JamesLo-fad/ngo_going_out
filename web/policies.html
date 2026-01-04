@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>政策搜索 - 中国 NGO 走出去数据平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+  <!-- Navigation -->
+  <nav class="bg-gray-900 text-white shadow-lg">
+    <div class="max-w-6xl mx-auto px-4 py-4">
+      <div class="flex items-center gap-8">
+        <h1 class="text-xl font-bold">NGO 数据平台</h1>
+        <div class="flex gap-6">
+          <a href="./index.html" class="text-gray-300 hover:text-white transition-colors">组织搜索</a>
+          <a href="./policies.html" class="text-white font-medium border-b-2 border-blue-400">政策搜索</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Search Bar -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <div class="flex gap-4">
+        <input
+          id="search-input"
+          type="search"
+          placeholder="搜索政策标题、发布单位..."
+          class="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-lg"
+        />
+        <button
+          id="search-btn"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg transition-colors font-medium"
+        >
+          搜索
+        </button>
+        <button
+          id="clear-btn"
+          class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg transition-colors"
+        >
+          清空
+        </button>
+      </div>
+    </div>
+
+    <!-- Policy List -->
+    <div id="policy-list" class="space-y-4">
+      <div class="text-center py-12 text-gray-500">加载中...</div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex justify-center items-center gap-4 mt-8"></div>
+  </main>
+
+  <footer class="text-center py-8 text-gray-500">
+    <small>&copy; <span id="year"></span> NGO 数据平台</small>
+  </footer>
+
+  <script>
+    const API_BASE = "";
+    const state = { query: "", page: 1, pageSize: 20, total: 0 };
+
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    // Helper functions
+    function escapeHtml(s) {
+      return (s || "").replace(/[&<>\"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function displayValue(v) {
+      if (v === null || v === undefined || v === '' || v === 'null') {
+        return '<span class="text-gray-400">-</span>';
+      }
+      return escapeHtml(String(v));
+    }
+
+    // Merge agency fields
+    function mergeAgencies(policy) {
+      const agencies = [
+        policy.agency1,
+        policy.agency2,
+        policy.agency3,
+        policy.agency4
+      ].filter(a => a && a !== '-' && a !== '' && a !== 'null');
+
+      return agencies.length > 0 ? agencies.join('、') : '-';
+    }
+
+    // Load policies
+    async function loadPolicies() {
+      try {
+        const params = new URLSearchParams({
+          page: state.page,
+          page_size: state.pageSize
+        });
+
+        if (state.query) {
+          params.set('query', state.query);
+        }
+
+        const res = await fetch(`${API_BASE}/api/policies?${params}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        state.total = data.total || 0;
+
+        renderPolicies(data.items || []);
+        renderPagination();
+      } catch (err) {
+        console.error(err);
+        document.getElementById("policy-list").innerHTML =
+          '<div class="text-center py-12 text-red-600">加载失败，请稍后重试</div>';
+      }
+    }
+
+    // Render policies
+    function renderPolicies(policies) {
+      const container = document.getElementById("policy-list");
+
+      if (policies.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 text-gray-500">未找到相关政策</div>';
+        return;
+      }
+
+      container.innerHTML = policies.map(p => `
+        <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+          <h3 class="text-xl font-bold text-gray-900 mb-3">${displayValue(p.title)}</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-600">📅 发布日期：</span>
+              <span>${displayValue(p.publish_date)}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-600">📄 文件类型：</span>
+              <span>${displayValue(p.doc_type)}</span>
+            </div>
+            <div class="flex items-start gap-2 md:col-span-2">
+              <span class="font-medium text-gray-600 flex-shrink-0">🏛️ 发布单位：</span>
+              <span>${displayValue(mergeAgencies(p))}</span>
+            </div>
+            ${p.link && p.link !== '-' ? `
+              <div class="md:col-span-2">
+                <a href="${escapeHtml(p.link)}" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline">
+                  🔗 查看原文
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                  </svg>
+                </a>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render pagination
+    function renderPagination() {
+      const container = document.getElementById("pagination");
+      const totalPages = Math.ceil(state.total / state.pageSize);
+
+      if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = `
+        <button
+          onclick="changePage(${state.page - 1})"
+          ${state.page === 1 ? 'disabled' : ''}
+          class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          上一页
+        </button>
+        <span class="text-gray-700">
+          第 <span class="font-bold">${state.page}</span> / ${totalPages} 页
+          （共 ${state.total} 条）
+        </span>
+        <button
+          onclick="changePage(${state.page + 1})"
+          ${state.page >= totalPages ? 'disabled' : ''}
+          class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          下一页
+        </button>
+      `;
+    }
+
+    // Change page
+    window.changePage = function(page) {
+      if (page < 1 || page > Math.ceil(state.total / state.pageSize)) return;
+      state.page = page;
+      loadPolicies();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Search
+    document.getElementById("search-btn").addEventListener("click", () => {
+      state.query = document.getElementById("search-input").value.trim();
+      state.page = 1;
+      loadPolicies();
+    });
+
+    // Clear search
+    document.getElementById("clear-btn").addEventListener("click", () => {
+      document.getElementById("search-input").value = "";
+      state.query = "";
+      state.page = 1;
+      loadPolicies();
+    });
+
+    // Enter key to search
+    document.getElementById("search-input").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("search-btn").click();
+      }
+    });
+
+    // Initial load
+    loadPolicies();
+  </script>
+</body>
+</html>
