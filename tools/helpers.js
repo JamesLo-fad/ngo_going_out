@@ -47,7 +47,7 @@ export function inlineParams(sql, params) {
 import { spawn } from 'node:child_process';
 export async function d1Exec(dbName, sql, params = []) {
   const cmd = params.length ? inlineParams(sql, params) : sql;
-  const args = ['d1', 'execute', dbName, '--command', cmd];
+  const args = ['d1', 'execute', dbName, '--command', cmd, '--remote'];
   await new Promise((resolve, reject) => {
     const p = spawn('wrangler', args, { stdio: 'inherit' });
     p.on('close', code => code === 0 ? resolve() : reject(new Error('wrangler d1 execute failed')));

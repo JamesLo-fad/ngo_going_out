@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>完整诊断测试</title>
+  <style>
+    body { font-family: system-ui; padding: 20px; max-width: 900px; margin: 0 auto; }
+    .section { margin: 30px 0; padding: 20px; border: 2px solid #ddd; border-radius: 8px; }
+    .test { margin: 15px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
+    .url { font-family: monospace; background: #f5f5f5; padding: 3px 6px; border-radius: 3px; font-size: 13px; }
+    .success { background: #d4edda; border-color: #c3e6cb; }
+    .error { background: #f8d7da; border-color: #f5c6cb; }
+    .pending { background: #fff3cd; border-color: #ffeaa7; }
+    .info { background: #d1ecf1; border-color: #bee5eb; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    h2 { margin-top: 0; color: #333; }
+    h3 { margin: 10px 0; color: #555; font-size: 16px; }
+    .status { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🔍 完整诊断测试</h1>
+
+  <div class="section info">
+    <h2>📋 测试说明</h2>
+    <p>这个页面会测试多个方面来诊断问题：</p>
+    <ol>
+      <li><strong>DNS 解析测试</strong>：检查域名是否可以解析</li>
+      <li><strong>Worker API 测试</strong>：测试不同的 Worker URL</li>
+      <li><strong>Pages Functions 测试</strong>：测试 Service Binding 是否工作</li>
+    </ol>
+    <button onclick="runAllTests()">开始完整测试</button>
+  </div>
+
+  <div id="results"></div>
+
+  <script>
+    const resultsDiv = document.getElementById('results');
+
+    function addSection(title) {
+      const section = document.createElement('div');
+      section.className = 'section';
+      section.innerHTML = `<h2>${title}</h2>`;
+      resultsDiv.appendChild(section);
+      return section;
+    }
+
+    function addTest(parent, title, status = 'pending') {
+      const test = document.createElement('div');
+      test.className = `test ${status}`;
+      test.innerHTML = `<h3>${title}</h3><p class="status">状态: 测试中...</p>`;
+      parent.appendChild(test);
+      return test;
+    }
+
+    function updateTest(test, status, content) {
+      test.className = `test ${status}`;
+      test.innerHTML = content;
+    }
+
+    async function testDNS() {
+      const section = addSection('1️⃣ DNS 解析测试');
+      const domains = [
+        'ngo-api.ngo-going-out.workers.dev',
+        'ngo-api-dev.ngo-going-out.workers.dev',
+        'ngo-website-9os.pages.dev'
+      ];
+
+      for (const domain of domains) {
+        const test = addTest(section, `DNS: ${domain}`);
+        try {
+          // Try to fetch with a very short timeout to test DNS
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+          await fetch(`https://${domain}/`, {
+            method: 'HEAD',
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+          updateTest(test, 'success', `
+            <h3>✅ DNS: <span class="url">${domain}</span></h3>
+            <p>DNS 解析成功</p>
+          `);
+        } catch (error) {
+          const isDNSError = error.message.includes('Failed to fetch') ||
+                            error.name === 'TypeError';
+          updateTest(test, isDNSError ? 'error' : 'info', `
+            <h3>${isDNSError ? '❌' : '⚠️'} DNS: <span class="url">${domain}</span></h3>
+            <p>${isDNSError ? 'DNS 解析可能失败' : '连接超时（DNS 可能正常）'}</p>
+            <p>错误: ${error.message}</p>
+          `);
+        }
+      }
+    }
+
+    async function testWorkerAPIs() {
+      const section = addSection('2️⃣ Worker API 测试');
+      const urls = [
+        'https://ngo-api.ngo-going-out.workers.dev/api/health',
+        'https://ngo-api-dev.ngo-going-out.workers.dev/api/health'
+      ];
+
+      for (const url of urls) {
+        const test = addTest(section, `API: ${url}`);
+        try {
+          const startTime = Date.now();
+          const response = await fetch(url, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(8000)
+          });
+          const duration = Date.now() - startTime;
+          const contentType = response.headers.get('content-type');
+
+          let data;
+          let dataPreview;
+          if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+            dataPreview = JSON.stringify(data, null, 2);
+          } else {
+            const text = await response.text();
+            dataPreview = text.substring(0, 200) + (text.length > 200 ? '...' : '');
+          }
+
+          updateTest(test, response.ok ? 'success' : 'error', `
+            <h3>${response.ok ? '✅' : '⚠️'} API: <span class="url">${url}</span></h3>
+            <p>状态码: ${response.status}</p>
+            <p>响应时间: ${duration}ms</p>
+            <p>Content-Type: ${contentType || 'unknown'}</p>
+            <p>响应数据:</p>
+            <pre>${dataPreview}</pre>
+          `);
+        } catch (error) {
+          updateTest(test, 'error', `
+            <h3>❌ API: <span class="url">${url}</span></h3>
+            <p>错误: ${error.message}</p>
+            <p>错误类型: ${error.name}</p>
+          `);
+        }
+      }
+    }
+
+    async function testPagesFunctions() {
+      const section = addSection('3️⃣ Pages Functions 测试（Service Binding）');
+      const urls = [
+        '/api/health',
+        '/api/orgs?page=1&page_size=5'
+      ];
+
+      for (const url of urls) {
+        const test = addTest(section, `Pages Function: ${url}`);
+        try {
+          const startTime = Date.now();
+          const response = await fetch(url, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(8000)
+          });
+          const duration = Date.now() - startTime;
+          const contentType = response.headers.get('content-type');
+
+          let data;
+          let dataPreview;
+          if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+            dataPreview = JSON.stringify(data, null, 2);
+          } else {
+            const text = await response.text();
+            dataPreview = text.substring(0, 300) + (text.length > 300 ? '...' : '');
+          }
+
+          const isJSON = contentType && contentType.includes('application/json');
+          updateTest(test, isJSON && response.ok ? 'success' : 'error', `
+            <h3>${isJSON && response.ok ? '✅' : '❌'} Pages Function: <span class="url">${url}</span></h3>
+            <p>状态码: ${response.status}</p>
+            <p>响应时间: ${duration}ms</p>
+            <p>Content-Type: ${contentType || 'unknown'}</p>
+            <p>${isJSON ? '✓ 返回 JSON（Functions 工作正常）' : '✗ 返回 HTML（Functions 未触发）'}</p>
+            <p>响应数据:</p>
+            <pre>${dataPreview}</pre>
+          `);
+        } catch (error) {
+          updateTest(test, 'error', `
+            <h3>❌ Pages Function: <span class="url">${url}</span></h3>
+            <p>错误: ${error.message}</p>
+            <p>错误类型: ${error.name}</p>
+          `);
+        }
+      }
+    }
+
+    async function runAllTests() {
+      resultsDiv.innerHTML = '';
+      document.querySelector('button').disabled = true;
+
+      try {
+        await testDNS();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        await testWorkerAPIs();
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        await testPagesFunctions();
+
+        // Add summary
+        const summary = addSection('📊 测试总结');
+        summary.innerHTML += `
+          <p>测试完成！请查看上面的结果。</p>
+          <p><strong>如果看到任何 ✅ 成功的测试，请截图并告诉我。</strong></p>
+          <p><strong>特别注意：</strong></p>
+          <ul>
+            <li>如果 Worker API 测试成功 → Worker URL 可以直接使用</li>
+            <li>如果 Pages Functions 测试成功 → Service Binding 工作正常</li>
+            <li>如果都失败 → 需要进一步诊断</li>
+          </ul>
+        `;
+      } finally {
+        document.querySelector('button').disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

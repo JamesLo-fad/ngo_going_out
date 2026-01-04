@@ -1,0 +1,19 @@
+# Full Worker serving both static files and API
+name = "ngo-full"
+main = "src/index.js"
+compatibility_date = "2024-10-01"
+
+# Assets binding for static files
+[assets]
+directory = "../web"
+binding = "ASSETS"
+
+# D1 binding
+[[d1_databases]]
+binding = "DB"
+database_name = "ngo_going_out"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
+
+[vars]
+ENV = "production"
+DEBUG_ENABLED = "false"

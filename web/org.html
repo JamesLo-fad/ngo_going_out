@@ -43,10 +43,8 @@
   <script>
     console.log("org.html version:", document.documentElement.dataset.version);
 
-    const API_BASE =
-      (location.hostname === "127.0.0.1" || location.hostname === "localhost")
-        ? "http://127.0.0.1:8787"
-        : "";
+    // Use relative paths - Service Binding via Pages Functions
+    const API_BASE = "";
 
     // IMPORTANT: Update this to your deployed image proxy Worker URL
     // Deploy the image-proxy worker first: cd image-proxy && wrangler deploy
