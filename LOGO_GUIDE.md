@@ -10,7 +10,7 @@
 
 ### 自动转换函数
 
-前端代码（`web/index.html` 和 `web/org.html`）中的 `driveToDirect()` 函数会自动处理：
+前端代码（`index.html` 和 `org.html`）中的 `driveToDirect()` 函数会自动处理：
 
 ```javascript
 function driveToDirect(url) {
@@ -201,7 +201,7 @@ wrangler deploy
 
 2. 更新前端配置：
 
-编辑 `web/index.html` 和 `web/org.html`：
+编辑 `index.html` 和 `org.html`：
 
 ```javascript
 // 找到这一行

@@ -353,11 +353,8 @@ chmod +x tools/test-api.sh
 1. **部署前端到Cloudflare Pages**
 
 ```bash
-# 在web目录下
-cd web
-
-# 使用wrangler pages部署
-wrangler pages deploy . --project-name=ngo-frontend
+# 在项目根目录执行
+npx wrangler pages deploy . --project-name=ngo-going-out
 ```
 
 2. **测试前端功能**
@@ -443,7 +440,7 @@ wrangler deploy
 
 2. 更新前端配置：
 ```javascript
-// 在 web/index.html 和 web/org.html 中
+// 在 index.html 和 org.html 中
 const IMG_PROXY = "https://ngo-img-proxy.your-subdomain.workers.dev";
 ```
 
@@ -568,6 +565,243 @@ wrangler d1 execute ngo_going_out \
 2. **设置告警**
    - 在Dashboard中配置告警规则
    - 错误率超过阈值时发送通知
+
+---
+
+## wrangler.toml 配置详解
+
+### 配置文件说明
+
+`wrangler.toml` 是 Cloudflare Pages 和 Workers 的核心配置文件，位于项目根目录。
+
+**当前配置：**
+```toml
+# Cloudflare Pages configuration
+name = "ngo-going-out"
+pages_build_output_dir = "."
+compatibility_date = "2024-10-01"
+
+# D1 database binding for Pages Functions
+[[d1_databases]]
+binding = "database"
+database_name = "ngo_going_out"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
+```
+
+### 配置项详解
+
+#### 1. `name = "ngo-going-out"`
+- **作用**：项目名称标识符
+- **用途**：在 Cloudflare Dashboard 中显示，用于识别项目
+- **注意**：必须与 Cloudflare Pages 项目名称一致
+
+#### 2. `pages_build_output_dir = "."`
+- **作用**：指定部署源目录
+- **含义**：`"."` 表示当前目录（项目根目录）
+- **重要性**：⭐⭐⭐⭐⭐ **最关键的配置**
+
+**为什么这个配置如此重要？**
+
+**项目重构前的问题：**
+```
+旧结构：
+ngo_going_out/
+├── wrangler.toml (pages_build_output_dir = "web")
+└── web/
+    ├── functions/api/
+    └── index.html
+
+问题：
+- GitHub 自动部署从 web/ 目录读取文件
+- 但 GitHub 集成无法正确识别嵌套的 web/functions/ 结构
+- 结果：只部署了静态文件，Functions bundle 未上传
+- 表现：API 端点返回 HTML 而非 JSON
+```
+
+**项目重构后的解决方案：**
+```
+新结构：
+ngo_going_out/
+├── wrangler.toml (pages_build_output_dir = ".")
+├── functions/api/
+└── index.html
+
+优势：
+- GitHub 自动部署从根目录读取文件
+- 正确识别 functions/ 目录
+- 结果：Functions bundle 成功上传 ✅
+- 表现：API 端点正常返回 JSON ✅
+```
+
+**关键要点：**
+- `pages_build_output_dir` 指向的目录必须**直接包含** `functions/` 目录
+- 不能有嵌套结构（如 `web/functions/`）
+- GitHub 自动部署对嵌套结构的支持有限
+
+#### 3. `compatibility_date = "2024-10-01"`
+- **作用**：锁定 Cloudflare Workers 运行时的 API 版本
+- **用途**：确保代码行为的一致性和稳定性
+- **注意**：
+  - 更新此日期可能影响代码行为
+  - 更新前需要充分测试
+  - 建议定期更新以获得新功能和性能改进
+
+#### 4. D1 数据库绑定
+
+```toml
+[[d1_databases]]
+binding = "database"
+database_name = "ngo_going_out"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
+```
+
+**`binding = "database"`**
+- **作用**：在代码中访问数据库的变量名
+- **使用**：`env.database` 在 Functions 代码中
+- **重要**：必须与代码中使用的名称完全一致
+
+**代码示例：**
+```javascript
+// functions/api/test.js
+export async function onRequest(context) {
+  const { env } = context;
+
+  // 使用 env.database 访问数据库
+  // "database" 必须与 wrangler.toml 中的 binding 一致
+  const result = await env.database
+    .prepare('SELECT * FROM orgs LIMIT 10')
+    .all();
+
+  return new Response(JSON.stringify(result.results));
+}
+```
+
+**`database_name = "ngo_going_out"`**
+- **作用**：数据库的人类可读名称
+- **用途**：在 Cloudflare Dashboard 中显示
+
+**`database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"`**
+- **作用**：D1 数据库的唯一标识符
+- **获取方式**：`wrangler d1 list`
+- **用途**：Cloudflare 用此 ID 定位具体的数据库实例
+
+### 配置注意事项
+
+#### 1. 文件位置要求
+- `wrangler.toml` **必须**在项目根目录
+- GitHub 自动部署从仓库根目录读取此文件
+- 如果放在子目录，部署会失败
+
+#### 2. 数据库绑定的双重配置
+**本地开发：**
+- 在 `wrangler.toml` 中配置
+- 用于 `wrangler pages dev` 命令
+
+**生产环境：**
+- 在 Cloudflare Dashboard 中配置
+- Pages 项目 → Settings → Functions → D1 database bindings
+- 添加绑定：
+  - Variable name: `database`（与 wrangler.toml 一致）
+  - D1 database: 选择 `ngo_going_out`
+
+**两处都需要配置，且名称必须一致！**
+
+#### 3. 手动部署 vs 自动部署
+
+**手动部署（wrangler pages deploy）：**
+```bash
+npx wrangler pages deploy . --project-name=ngo-going-out
+```
+- Wrangler CLI 直接扫描当前目录
+- 能够正确处理各种目录结构
+- 即使在子目录执行也能成功
+
+**GitHub 自动部署：**
+- Cloudflare 服务器端处理
+- 严格按照 `pages_build_output_dir` 配置
+- 对嵌套结构的处理有限制
+- **这就是为什么需要项目重构**
+
+### 验证配置是否正确
+
+#### 1. 检查部署日志
+
+访问 Cloudflare Dashboard → Pages → ngo-going-out → Deployments
+
+**正常日志应包含：**
+```
+✨ Uploading Functions bundle
+✅ Functions uploaded successfully
+```
+
+**如果没有这些日志：**
+- Functions 未被部署
+- 检查 `pages_build_output_dir` 配置
+- 检查 `functions/` 目录位置
+
+#### 2. 测试 API 端点
+
+```bash
+curl https://ngo-going-out.pages.dev/api/test
+```
+
+**期望输出（JSON）：**
+```json
+{
+  "ok": true,
+  "message": "Functions are working!",
+  "database_test": {
+    "success": true,
+    "count": 439
+  }
+}
+```
+
+**如果返回 HTML（`<!DOCTYPE html>...`）：**
+- Functions 未部署
+- 需要检查配置和目录结构
+
+#### 3. 检查浏览器控制台
+
+访问网站，打开开发者工具（F12）：
+
+**正常情况：**
+```
+Fetching: /api/orgs?page=1&page_size=20
+✓ Loaded 20 organizations
+```
+
+**异常情况：**
+```
+Fetching: /api/orgs?page=1&page_size=20
+✗ SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+```
+
+### 常见问题
+
+**Q: 修改 wrangler.toml 后需要重新部署吗？**
+A: 是的。配置更改不会自动生效，需要：
+- Git push 触发自动部署
+- 或手动部署：`npx wrangler pages deploy .`
+
+**Q: 为什么手动部署能工作，但 GitHub 自动部署不行？**
+A:
+- 手动部署：Wrangler CLI 本地扫描，逻辑更智能
+- 自动部署：Cloudflare 服务器端处理，严格按配置执行
+- 解决方案：确保 `pages_build_output_dir` 正确指向包含 `functions/` 的目录
+
+**Q: 如何切换数据库（开发/生产）？**
+A:
+- 方法 1：修改 `wrangler.toml` 中的 `database_id`
+- 方法 2：在 Cloudflare Dashboard 中更改绑定
+- 推荐：使用不同的 Pages 项目（如 ngo-going-out-dev 和 ngo-going-out）
+
+**Q: 数据库绑定名称不匹配会怎样？**
+A:
+- wrangler.toml: `binding = "DB"`
+- 代码: `env.database`
+- 结果：`env.database is undefined` 错误
+- 解决：确保两处名称完全一致
 
 ---
 

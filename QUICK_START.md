@@ -48,21 +48,44 @@ node import_policies.js ../data/policies_clean.csv --mode=append
 cd ..
 ```
 
-### 4. 部署Worker
+### 4. 部署到 Cloudflare Pages
+
+**推荐方式：GitHub 自动部署**
 
 ```bash
-# 部署到开发环境
-wrangler deploy
+# 提交代码到 GitHub
+git add .
+git commit -m "Initial deployment"
+git push origin main
+
+# Cloudflare 会自动检测并部署
+# 访问 Cloudflare Dashboard 查看部署状态
 ```
 
-### 5. 测试
+**或手动部署：**
 
 ```bash
-# 获取Worker URL（从上一步的输出中）
-# 例如: https://ngo-api-dev.your-subdomain.workers.dev
+# 在项目根目录执行
+npx wrangler pages deploy . --project-name=ngo-going-out
+```
+
+### 5. 配置 D1 数据库绑定
+
+在 Cloudflare Dashboard 中：
+1. Pages → ngo-going-out → Settings → Functions
+2. D1 database bindings → Add binding
+3. Variable name: `database`
+4. D1 database: 选择 `ngo_going_out_dev`
+5. Save
+
+### 6. 测试
+
+```bash
+# 测试 Pages 部署的 API
+# 例如: https://ngo-going-out.pages.dev
 
 # 运行测试脚本
-./tools/test-api.sh https://ngo-api-dev.your-subdomain.workers.dev
+./tools/test-api.sh https://ngo-going-out.pages.dev
 ```
 
 ---
@@ -92,14 +115,31 @@ cd ..
 
 ### 3. 部署到生产
 
+**推荐方式：GitHub 自动部署**
+
 ```bash
-wrangler deploy --env production
+# 确保代码已推送到 main 分支
+git push origin main
+
+# Cloudflare 自动部署到生产环境
 ```
 
-### 4. 测试生产环境
+**或手动部署：**
 
 ```bash
-./tools/test-api.sh https://ngo-api.your-subdomain.workers.dev
+npx wrangler pages deploy . --project-name=ngo-going-out --branch=production
+```
+
+### 4. 配置生产环境 D1 绑定
+
+在 Cloudflare Dashboard 中：
+1. Pages → ngo-going-out → Settings → Functions
+2. D1 database bindings → 确认绑定到 `ngo_going_out`（生产数据库）
+
+### 5. 测试生产环境
+
+```bash
+./tools/test-api.sh https://ngo-going-out.pages.dev
 ```
 
 ---
@@ -113,13 +153,13 @@ wrangler d1 execute <DB_NAME> --file=d1/schema.sql --remote
 ```
 
 ### Q: 如何查看实时日志？
-**A:** 使用wrangler tail命令：
+**A:** 使用 Cloudflare Dashboard 或 wrangler tail 命令：
 ```bash
-# 开发环境
-wrangler tail
+# 查看 Pages 部署日志
+# Cloudflare Dashboard → Pages → ngo-going-out → Deployments
 
-# 生产环境
-wrangler tail --env production
+# 或使用 wrangler（如果配置了 Worker）
+wrangler tail
 ```
 
 ### Q: 如何更新数据？

@@ -96,7 +96,6 @@ This project uses a modern serverless architecture:
 
 6. **Start local development**
    ```bash
-   cd web
    npx wrangler pages dev . --d1 database=YOUR_DATABASE_ID
    ```
 
@@ -106,17 +105,20 @@ This project uses a modern serverless architecture:
 
 ```
 ngo_going_out/
-├── web/                          # Frontend and Pages Functions
-│   ├── functions/                # Pages Functions (API)
-│   │   └── api/
-│   │       └── [[path]].js      # Catch-all API route handler
-│   ├── index.html               # Main search page
-│   ├── org.html                 # Organization detail page
-│   ├── _routes.json             # Pages routing configuration
-│   ├── _headers                 # CORS headers
-│   └── wrangler.toml            # Pages configuration
-├── worker/                       # Legacy Worker (optional)
-│   └── src/index.js             # Worker API (backup)
+├── functions/                    # Pages Functions (API)
+│   └── api/
+│       ├── test.js              # Diagnostic endpoint
+│       ├── health.js            # Health check
+│       ├── policies.js          # Policies list
+│       └── orgs/                # Organizations endpoints
+│           ├── index.js         # List organizations
+│           └── [id].js          # Single organization
+├── index.html                   # Main search page
+├── policies.html                # Policies page
+├── org.html                     # Organization detail page
+├── _routes.json                 # Pages routing configuration
+├── _headers                     # CORS headers
+├── wrangler.toml                # Cloudflare Pages configuration
 ├── d1/
 │   └── schema.sql               # Database schema
 ├── tools/                        # Data import utilities
@@ -125,8 +127,8 @@ ngo_going_out/
 │   └── helpers.js               # Shared utilities
 ├── data/                         # Data files (not in repo)
 │   ├── orgs_clean.csv           # Organizations data
-│   └── policies.csv             # Policies data
-└── wrangler.toml                # Worker configuration (legacy)
+│   └── policies_clean.csv       # Policies data
+└── README.md                    # This file
 ```
 
 ## 🗄️ Database Schema
@@ -194,7 +196,6 @@ SQLite FTS5 tables for fast text search.
 ### Option 2: Direct Deployment with Wrangler
 
 ```bash
-cd web
 npx wrangler pages deploy . --project-name=ngo-going-out
 ```
 
@@ -327,9 +328,11 @@ wrangler d1 execute ngo_going_out --remote --command "SELECT id, org_name, overs
 
 ## 🛠️ Configuration Files
 
-### `web/wrangler.toml`
-Pages configuration with D1 binding:
+### `wrangler.toml` - Cloudflare Pages Configuration
 
+This is the main configuration file for Cloudflare Wrangler CLI and Pages deployment.
+
+**Current configuration:**
 ```toml
 name = "ngo-going-out"
 pages_build_output_dir = "."
@@ -338,10 +341,50 @@ compatibility_date = "2024-10-01"
 [[d1_databases]]
 binding = "database"
 database_name = "ngo_going_out"
-database_id = "YOUR_DATABASE_ID"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
 ```
 
-### `web/_routes.json`
+**Configuration explained:**
+
+- **`name`**: Project name, must match your Cloudflare Pages project name
+  - Used to identify the deployment target
+
+- **`pages_build_output_dir`**: Source directory for deployment
+  - `"."` means current directory (project root)
+  - **Critical**: GitHub auto-deployment reads from this directory
+  - Must contain `functions/` directory for Pages Functions to deploy
+  - **Why `"."` and not `"web"`**: After project restructuring, all files are in root directory. Setting this to `"."` ensures GitHub can find and deploy the `functions/` directory correctly.
+
+- **`compatibility_date`**: Cloudflare Workers runtime compatibility date
+  - Locks the Workers API behavior to a specific version
+  - Ensures code runs consistently over time
+  - Update carefully as it may affect code behavior
+
+- **`[[d1_databases]]`**: D1 database binding configuration
+  - **`binding`**: Variable name used in code (`env.database`)
+    - **Must match** the name used in your Functions code
+    - Example: `const result = await env.database.prepare('SELECT * FROM orgs').all();`
+  - **`database_name`**: Human-readable database name
+  - **`database_id`**: Unique identifier for the D1 database instance
+    - Get this from: `wrangler d1 list`
+
+**Important notes:**
+
+1. **File location**: `wrangler.toml` must be in project root directory
+   - GitHub auto-deployment reads this file from repository root
+
+2. **Database binding**: Also needs to be configured in Cloudflare Dashboard
+   - Go to: Pages project → Settings → Functions → D1 database bindings
+   - Add binding with same name (`database`) and select your database
+
+3. **Why the project was restructured**:
+   - **Old structure**: Files in `web/` directory, `pages_build_output_dir = "web"`
+   - **Problem**: GitHub auto-deployment couldn't properly deploy Functions from nested `web/functions/` structure
+   - **Result**: API endpoints returned HTML instead of JSON (Functions not deployed)
+   - **Solution**: Moved all files to root, set `pages_build_output_dir = "."`
+   - **Now**: GitHub correctly deploys Functions bundle, APIs return JSON ✅
+
+### `_routes.json`
 Routes configuration to ensure `/api/*` requests go to Functions:
 
 ```json
@@ -352,7 +395,7 @@ Routes configuration to ensure `/api/*` requests go to Functions:
 }
 ```
 
-### `web/_headers`
+### `_headers`
 CORS headers for API access:
 
 ```
@@ -371,7 +414,7 @@ CORS headers for API access:
 **Solution**:
 - Ensure D1 binding is configured in Cloudflare Dashboard
 - Check that binding variable name is `database`
-- Verify `_routes.json` is present in the `web/` directory
+- Verify `_routes.json` is present in the project root directory
 - Redeploy after configuration changes
 
 ### Database Connection Errors
@@ -400,8 +443,8 @@ export D1_DB_NAME=ngo_going_out
 ### CORS Issues
 
 If frontend can't connect to API:
-- Check `_headers` file is present
-- Verify CORS headers in `web/functions/api/[[path]].js`
+- Check `_headers` file is present in project root
+- Verify CORS headers in Functions code
 - Check browser console for specific CORS errors
 
 ### Deployment Fails

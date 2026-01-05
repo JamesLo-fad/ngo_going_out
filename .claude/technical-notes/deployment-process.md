@@ -34,7 +34,6 @@ The NGO Going Out platform is deployed on Cloudflare Pages with automatic deploy
 
 **Command**:
 ```bash
-cd web
 npx wrangler pages deploy . --project-name=ngo-going-out
 ```
 
@@ -54,20 +53,22 @@ npx wrangler pages deploy . --project-name=ngo-going-out
 
 ```
 ngo_going_out/
-├── web/                    # Deployment root
-│   ├── index.html         # Homepage
-│   ├── policies.html      # Policies page
-│   ├── org.html           # Organization detail page
-│   ├── functions/         # Pages Functions
-│   │   └── api/          # API endpoints
-│   │       ├── test.js
-│   │       ├── policies.js
-│   │       └── orgs/
-│   │           ├── index.js
-│   │           └── [id].js
-│   └── wrangler.toml      # Configuration
-├── tools/                 # Import scripts (not deployed)
-├── data/                  # CSV files (not deployed)
+├── functions/                # Pages Functions
+│   └── api/                 # API endpoints
+│       ├── test.js
+│       ├── health.js
+│       ├── policies.js
+│       └── orgs/
+│           ├── index.js
+│           └── [id].js
+├── index.html               # Homepage
+├── policies.html            # Policies page
+├── org.html                 # Organization detail page
+├── _routes.json             # Pages routing configuration
+├── _headers                 # CORS headers
+├── wrangler.toml            # Configuration
+├── tools/                   # Import scripts (not deployed)
+├── data/                    # CSV files (not deployed)
 └── .gitignore
 ```
 
@@ -124,14 +125,13 @@ wrangler login
 
 ```bash
 # 1. Make changes locally
-vim web/index.html
+vim index.html
 
 # 2. Test locally (optional)
-cd web
 npx wrangler pages dev .
 
 # 3. Commit changes
-git add web/index.html
+git add index.html
 git commit -m "Update homepage"
 
 # 4. Push to GitHub
@@ -269,7 +269,7 @@ npx wrangler pages deployment tail --project-name=ngo-going-out
 **Solutions**:
 1. Check `wrangler.toml` configuration
 2. Verify D1 binding name matches code
-3. Ensure functions are in `web/functions/api/` directory
+3. Ensure functions are in `functions/api/` directory
 4. Check function export syntax: `export async function onRequest(context)`
 
 ### Database Connection Fails

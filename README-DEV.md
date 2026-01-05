@@ -86,7 +86,6 @@ wrangler d1 create ngo_going_out_dev
 
 ```bash
 # Start local development server
-cd web
 npx wrangler pages dev . --d1 database=ngo_going_out_dev
 
 # Server will start at http://localhost:8788
@@ -115,18 +114,22 @@ ngo_going_out/
 │   ├── helpers.js            # Shared utilities
 │   ├── import_orgs.js        # Import organizations
 │   └── import_policies.js    # Import policies
-├── web/                       # Deployment root
-│   ├── functions/            # Pages Functions
-│   │   └── api/              # API endpoints
-│   │       ├── test.js       # Diagnostic endpoint
-│   │       ├── policies.js   # Policies list
-│   │       └── orgs/         # Organizations endpoints
-│   │           ├── index.js  # List orgs
-│   │           └── [id].js   # Single org
-│   ├── index.html            # Homepage (org search)
-│   ├── policies.html         # Policies page
-│   ├── org.html              # Organization detail
-│   └── wrangler.toml         # Cloudflare configuration
+├── functions/                 # Pages Functions
+│   └── api/                  # API endpoints
+│       ├── test.js           # Diagnostic endpoint
+│       ├── health.js         # Health check
+│       ├── policies.js       # Policies list
+│       └── orgs/             # Organizations endpoints
+│           ├── index.js      # List orgs
+│           └── [id].js       # Single org
+├── index.html                 # Homepage (org search)
+├── policies.html              # Policies page
+├── org.html                   # Organization detail
+├── _routes.json               # Pages routing configuration
+├── _headers                   # CORS headers
+├── wrangler.toml              # Cloudflare configuration
+├── d1/                        # Database schema
+│   └── schema.sql
 ├── README.md                  # User documentation
 └── README-DEV.md             # This file
 
@@ -137,8 +140,8 @@ ngo_going_out/
 - **`.claude/`**: Documentation for Claude Code (AI assistant)
 - **`data/`**: CSV source files (not in git, too large)
 - **`tools/`**: Node.js scripts for data import
-- **`web/`**: Everything that gets deployed
-- **`web/functions/api/`**: Serverless API endpoints
+- **`functions/api/`**: Serverless API endpoints (Pages Functions)
+- **`d1/`**: Database schema files
 
 ## Database Management
 
@@ -204,7 +207,7 @@ node tools/import_orgs.js data/orgs_clean.csv --mode=replace
 
 ### Creating New Endpoints
 
-**File location**: `web/functions/api/your-endpoint.js`
+**File location**: `functions/api/your-endpoint.js`
 
 **Template**:
 ```javascript
@@ -268,7 +271,6 @@ const result = await env.database.prepare('SELECT * FROM orgs WHERE org_name LIK
 
 ```bash
 # Start dev server
-cd web
 npx wrangler pages dev .
 
 # Test in another terminal
@@ -346,7 +348,6 @@ function displayValue(v) {
 ### Manual Deployment
 
 ```bash
-cd web
 npx wrangler pages deploy . --project-name=ngo-going-out
 ```
 
@@ -441,7 +442,7 @@ npx wrangler d1 execute ngo_going_out --remote --command="SELECT 1"
 **Cause**: Pages Functions not executing
 
 **Check**:
-1. Functions in correct directory (`web/functions/api/`)
+1. Functions in correct directory (`functions/api/`)
 2. Correct export: `export async function onRequest(context)`
 3. D1 binding configured in Cloudflare dashboard
 4. Binding name matches code (`env.database`)
