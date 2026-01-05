@@ -217,10 +217,8 @@
         <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
           <div class="flex items-start gap-6">
             <div class="flex-shrink-0">
-              ${o.logo_url && o.logo_url !== '-' ?
-                `<img src="${escapeHtml(normalizeLogoUrl(o.logo_url) || PLACEHOLDER_LOGO)}" alt="Logo" class="w-32 h-32 object-contain rounded-lg border border-gray-200" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"128\\" height=\\"128\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f3f4f6\\"/><text x=\\"50%\\" y=\\"50%\\" font-family=\\"Arial\\" font-size=\\"14\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%239ca3af\\">No Logo</text></svg>'" />` :
-                `<div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">暂无图片</div>`
-              }
+              <img id="org-logo" src="${escapeHtml(normalizeLogoUrl(o.logo_url) || PLACEHOLDER_LOGO)}" alt="Logo" class="w-32 h-32 object-contain rounded-lg border border-gray-200" />
+            </div>
             </div>
             <div class="flex-1">
               <h1 class="text-3xl font-bold text-gray-900 mb-2">${displayValue(o.org_name)}</h1>
@@ -299,6 +297,19 @@
           </a>
         </div>
       `;
+
+      // Handle logo loading errors
+      const logoImg = document.getElementById('org-logo');
+      if (logoImg) {
+        logoImg.addEventListener('error', function() {
+          console.warn('[logo error]', this.src);
+          this.onerror = null; // Prevent infinite loop
+          this.src = PLACEHOLDER_LOGO;
+        });
+        logoImg.addEventListener('load', function() {
+          console.log('[logo loaded]', this.src);
+        });
+      }
     }
   </script>
 </body>
