@@ -115,7 +115,7 @@
     function highlightText(text, query) {
       if (!query || !text) return escapeHtml(text);
       const escaped = escapeHtml(text);
-      const escapedQuery = query.replace(/[.*+?^${}()|[\]\]/g, '\$&');
+      const escapedQuery = query.replace(/[].*+?^${}()|[\\]/g, '\$&');
       const regex = new RegExp(`(${escapedQuery})`, 'gi');
       return escaped.replace(regex, '<mark style="background:#fef08a; padding:0 2px; border-radius:2px;">$1</mark>');
     }
