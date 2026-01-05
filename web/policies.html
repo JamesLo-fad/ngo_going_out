@@ -5,6 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>政策搜索 - 中国 NGO 走出去数据平台</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Skeleton Loading Styles */
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s ease-in-out infinite; }
+    @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-policy { background:#fff; border-radius:8px; padding:24px; margin-bottom:16px; }
+    .skeleton-title { height:24px; background:#e5e7eb; border-radius:4px; margin-bottom:16px; width:80%; }
+    .skeleton-text { height:16px; background:#e5e7eb; border-radius:4px; margin-bottom:8px; }
+    .skeleton-text.short { width:40%; }
+
+    /* Back to Top Button */
+    #back-to-top { position:fixed; bottom:24px; right:24px; width:48px; height:48px; background:#111827; color:#fff; border:none; border-radius:50%; cursor:pointer; display:none; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,0.15); transition:all 0.3s ease; z-index:1000; }
+    #back-to-top:hover { background:#1f2937; transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.2); }
+    #back-to-top.show { display:flex; }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      nav .flex.gap-6 { gap:16px; }
+      #back-to-top { bottom:16px; right:16px; width:44px; height:44px; }
+    }
+    @media (max-width: 480px) {
+      nav .flex.items-center.gap-8 { flex-direction:column; align-items:flex-start; gap:12px; }
+      .bg-white.rounded-lg.shadow-lg.p-6 { padding:16px; }
+      main { padding:12px 16px; }
+    }
+  </style>
 </head>
 <body class="bg-gray-50">
   <!-- Navigation -->
@@ -59,6 +84,13 @@
     <small>&copy; <span id="year"></span> NGO 数据平台</small>
   </footer>
 
+  <!-- Back to Top Button -->
+  <button id="back-to-top" aria-label="返回顶部" title="返回顶部">
+    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+    </svg>
+  </button>
+
   <script>
     const API_BASE = "";
     const state = { query: "", page: 1, pageSize: 20, total: 0 };
@@ -79,6 +111,14 @@
       return escapeHtml(String(v));
     }
 
+    // Highlight search query in text
+    function highlightText(text, query) {
+      if (!query || !text) return escapeHtml(text);
+      const escaped = escapeHtml(text);
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      return escaped.replace(regex, '<mark style="background:#fef08a; padding:0 2px; border-radius:2px;">$1</mark>');
+    }
+
     // Merge issuer fields
     function mergeAgencies(policy) {
       const agencies = [
@@ -93,6 +133,7 @@
 
     // Load policies
     async function loadPolicies() {
+      renderSkeleton();
       try {
         const params = new URLSearchParams({
           page: state.page,
@@ -113,9 +154,38 @@
         renderPagination();
       } catch (err) {
         console.error(err);
-        document.getElementById("policy-list").innerHTML =
-          '<div class="text-center py-12 text-red-600">加载失败，请稍后重试</div>';
+        document.getElementById("policy-list").innerHTML = `
+          <div class="text-center py-16">
+            <svg class="mx-auto h-24 w-24 text-red-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">加载失败</h3>
+            <p class="text-gray-500 mb-6">请稍后重试</p>
+            <button onclick="loadPolicies()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              重试
+            </button>
+          </div>
+        `;
       }
+    }
+
+    // Render skeleton
+    function renderSkeleton() {
+      const container = document.getElementById("policy-list");
+      let html = '';
+      for (let i = 0; i < 5; i++) {
+        html += `
+          <div class="skeleton-policy">
+            <div class="skeleton-title skeleton"></div>
+            <div class="skeleton-text skeleton"></div>
+            <div class="skeleton-text short skeleton"></div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
     }
 
     // Render policies
@@ -123,13 +193,24 @@
       const container = document.getElementById("policy-list");
 
       if (policies.length === 0) {
-        container.innerHTML = '<div class="text-center py-12 text-gray-500">未找到相关政策</div>';
+        container.innerHTML = `
+          <div class="text-center py-16">
+            <svg class="mx-auto h-24 w-24 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">未找到相关政策</h3>
+            <p class="text-gray-500 mb-6">试试调整搜索关键词或清空搜索</p>
+            <button onclick="document.getElementById('clear-btn').click()" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+              清空搜索
+            </button>
+          </div>
+        `;
         return;
       }
 
       container.innerHTML = policies.map(p => `
         <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-          <h3 class="text-xl font-bold text-gray-900 mb-3">${displayValue(p.title)}</h3>
+          <h3 class="text-xl font-bold text-gray-900 mb-3">${state.query ? highlightText(p.title, state.query) : displayValue(p.title)}</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div class="flex items-center gap-2">
               <span class="font-medium text-gray-600">📅 发布日期：</span>
@@ -141,7 +222,7 @@
             </div>
             <div class="flex items-start gap-2 md:col-span-2">
               <span class="font-medium text-gray-600 flex-shrink-0">🏛️ 发布单位：</span>
-              <span>${displayValue(mergeAgencies(p))}</span>
+              <span>${state.query ? highlightText(mergeAgencies(p), state.query) : displayValue(mergeAgencies(p))}</span>
             </div>
             ${p.link && p.link !== '-' ? `
               <div class="md:col-span-2">
@@ -219,6 +300,19 @@
       if (e.key === "Enter") {
         document.getElementById("search-btn").click();
       }
+    });
+
+    // Back to Top functionality
+    const backToTopBtn = document.getElementById("back-to-top");
+    window.addEventListener("scroll", () => {
+      if (window.pageYOffset > 300) {
+        backToTopBtn.classList.add("show");
+      } else {
+        backToTopBtn.classList.remove("show");
+      }
+    });
+    backToTopBtn.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
     // Initial load
