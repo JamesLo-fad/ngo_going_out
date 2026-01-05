@@ -365,84 +365,41 @@ npx wrangler pages deploy . --project-name=ngo-going-out
 
 ---
 
-## Logo图片处理
+## Logo 图片处理
 
-### Google Drive链接支持
+### R2 图片存储系统
 
-✅ **好消息：代码已经支持Google Drive链接！**
+本项目使用 **Cloudflare R2** 存储和提供所有图片资源。
 
-前端代码中的 `driveToDirect()` 函数会自动转换Google Drive链接：
+**核心组件**：
+- **R2 Bucket**: `ngo-org-logo` - 存储所有图片文件
+- **Pages Function**: `functions/cdn/[[path]].js` - 提供公开访问
+- **CDN URL**: `https://ngo-going-out.pages.dev/cdn/{filename}`
 
-```javascript
-// 支持的格式：
-// 1. https://drive.google.com/file/d/FILE_ID/view
-// 2. https://drive.google.com/open?id=FILE_ID
-
-// 自动转换为：
-// https://drive.google.com/uc?export=view&id=FILE_ID
-```
-
-### 添加Logo URL的步骤
-
-**方法1：手动编辑CSV（推荐用于少量更新）**
-
-1. 打开 `data/orgs_clean.csv`
-2. 在"官网LOGO或图片"列添加Google Drive链接
-3. 重新导入数据（使用append模式）：
+### 快速上传 Logo
 
 ```bash
-export D1_DB_NAME=ngo_going_out_dev
-node tools/import_orgs.js ../data/orgs_clean.csv --mode=append
+# 1. 上传图片到 R2
+npx wrangler r2 object put ngo-org-logo/org_1.png --file=./logo.png --remote
+
+# 2. 更新数据库
+npx wrangler d1 execute ngo_going_out --remote --command="
+UPDATE orgs
+SET logo_url = 'https://ngo-going-out.pages.dev/cdn/org_1.png'
+WHERE id = 1;
+"
+
+# 3. 验证
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png
 ```
 
-**方法2：批量更新（推荐用于大量更新）**
+### 测试 Logo 系统
 
-创建 `tools/update_logos.js`:
-
-```javascript
-// 批量更新Logo URL
-import { d1Exec } from './helpers.js';
-
-const DB_NAME = process.env.D1_DB_NAME;
-
-const logoUpdates = [
-  { id: 1, url: 'https://drive.google.com/file/d/xxx/view' },
-  { id: 2, url: 'https://drive.google.com/file/d/yyy/view' },
-  // ... 更多
-];
-
-for (const { id, url } of logoUpdates) {
-  await d1Exec(DB_NAME,
-    'UPDATE orgs SET logo_url = ? WHERE id = ?',
-    [url, id]
-  );
-}
-```
-
-### Google Drive图片权限设置
-
-⚠️ **重要：必须设置为公开访问**
-
-1. 在Google Drive中右键点击图片
-2. 选择"共享" → "获取链接"
-3. 设置为"任何人都可以查看"
-4. 复制链接
-
-### 图片代理（可选）
-
-如果遇到CORS问题，可以启用image-proxy：
-
-1. 部署image-proxy worker：
 ```bash
-cd image-proxy
-wrangler deploy
+bash tools/test-logo-system.sh
 ```
 
-2. 更新前端配置：
-```javascript
-// 在 index.html 和 org.html 中
-const IMG_PROXY = "https://ngo-img-proxy.your-subdomain.workers.dev";
-```
+**详细文档**：参见 [R2_LOGO_GUIDE.md](./R2_LOGO_GUIDE.md)
 
 ---
 
@@ -802,6 +759,347 @@ A:
 - 代码: `env.database`
 - 结果：`env.database is undefined` 错误
 - 解决：确保两处名称完全一致
+
+---
+
+## `_routes.json` 配置详解 ⭐ **关键配置**
+
+### 配置文件说明
+
+`_routes.json` 是 Cloudflare Pages 的路由配置文件，**决定哪些请求会被路由到 Pages Functions**。
+
+**当前配置：**
+```json
+{
+  "version": 1,
+  "include": ["/api/*", "/cdn/*"],
+  "exclude": []
+}
+```
+
+### 为什么这个配置如此重要？
+
+**Pages Functions 的路由机制**：
+1. 用户访问 `https://ngo-going-out.pages.dev/cdn/org_1.png`
+2. Cloudflare 检查 `_routes.json` 的 `include` 规则
+3. 如果路径匹配 `/cdn/*`，请求被路由到 `functions/cdn/[[path]].js`
+4. 如果路径不匹配，请求被路由到静态文件服务（返回 HTML）
+
+**没有正确配置会发生什么**：
+```json
+{
+  "version": 1,
+  "include": ["/api/*"],  // ❌ 缺少 /cdn/*
+  "exclude": []
+}
+```
+
+结果：
+- `/api/*` 请求 → Pages Functions ✅
+- `/cdn/*` 请求 → 静态文件服务 ❌
+- 返回 `index.html` 而不是图片
+- 浏览器显示 "No Logo"
+
+### 配置项详解
+
+#### `version: 1`
+- 路由配置的版本号
+- 目前只有版本 1
+
+#### `include: ["/api/*", "/cdn/*"]`
+- **作用**：指定哪些路径会被路由到 Pages Functions
+- **格式**：支持通配符 `*`
+- **示例**：
+  - `/api/*` 匹配 `/api/orgs`, `/api/orgs/1`, `/api/health` 等
+  - `/cdn/*` 匹配 `/cdn/org_1.png`, `/cdn/projects/image.jpg` 等
+
+#### `exclude: []`
+- **作用**：从 `include` 中排除特定路径
+- **用途**：某些路径需要静态文件服务而不是 Functions
+- **示例**：
+  ```json
+  {
+    "include": ["/api/*"],
+    "exclude": ["/api/static/*"]
+  }
+  ```
+  - `/api/orgs` → Functions ✅
+  - `/api/static/file.txt` → 静态文件 ✅
+
+### 实际案例：Logo 系统故障排查
+
+#### 问题描述
+用户报告 logo 无法显示，浏览器显示 "No Logo" 占位符。
+
+#### 诊断过程
+
+**步骤 1：检查 CDN 端点**
+```bash
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png
+```
+
+**错误输出**：
+```
+HTTP/2 200
+content-type: text/html; charset=utf-8  # ❌ 应该是 image/png
+```
+
+**步骤 2：检查返回内容**
+```bash
+curl https://ngo-going-out.pages.dev/cdn/org_1.png | head -5
+```
+
+**错误输出**：
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <title>组织搜索 - 中国 NGO 走出去数据平台</title>
+```
+
+**结论**：返回的是 `index.html`，说明请求没有被路由到 Pages Function。
+
+**步骤 3：检查 `_routes.json`**
+```json
+{
+  "version": 1,
+  "include": ["/api/*"],  // ❌ 缺少 /cdn/*
+  "exclude": []
+}
+```
+
+**根本原因**：`_routes.json` 只包含 `/api/*`，不包含 `/cdn/*`。
+
+#### 解决方案
+
+**修复 `_routes.json`**：
+```json
+{
+  "version": 1,
+  "include": ["/api/*", "/cdn/*"],  // ✅ 添加 /cdn/*
+  "exclude": []
+}
+```
+
+**提交并部署**：
+```bash
+git add _routes.json
+git commit -m "Fix: Add /cdn/* to _routes.json to enable CDN Pages Function"
+git push
+```
+
+**验证修复**：
+```bash
+# 等待部署完成（约 30-60 秒）
+sleep 30
+
+# 测试 CDN 端点
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png
+
+# 期望输出：
+# HTTP/2 200
+# content-type: image/png  # ✅ 正确
+# cache-control: public, max-age=31536000
+# access-control-allow-origin: *
+```
+
+### 关键经验教训
+
+#### 1. **`_routes.json` 是 Pages Functions 工作的前提**
+
+**错误认知**：
+- "只要有 `functions/` 目录，Pages Functions 就会自动工作"
+
+**正确认知**：
+- `functions/` 目录定义了 Functions 的代码
+- `_routes.json` 定义了哪些请求会被路由到 Functions
+- **两者缺一不可**
+
+#### 2. **文件位置必须在项目根目录**
+
+**错误**：
+```
+ngo_going_out/
+├── web/
+│   └── _routes.json  # ❌ 错误位置
+└── _routes.json      # ✅ 正确位置
+```
+
+**原因**：
+- Cloudflare Pages 从 `pages_build_output_dir` 指定的目录读取配置
+- 如果 `pages_build_output_dir = "."`，则 `_routes.json` 必须在根目录
+
+#### 3. **添加新的 Functions 路径时必须更新 `_routes.json`**
+
+**场景**：添加新的 Functions 端点
+
+**错误做法**：
+1. 创建 `functions/images/[[path]].js`
+2. 部署
+3. 访问 `/images/photo.jpg` → 返回 HTML ❌
+
+**正确做法**：
+1. 创建 `functions/images/[[path]].js`
+2. 更新 `_routes.json`：
+   ```json
+   {
+     "include": ["/api/*", "/cdn/*", "/images/*"]
+   }
+   ```
+3. 提交并部署
+4. 访问 `/images/photo.jpg` → 返回图片 ✅
+
+#### 4. **通配符的匹配规则**
+
+**`/api/*` 匹配**：
+- ✅ `/api/orgs`
+- ✅ `/api/orgs/1`
+- ✅ `/api/health`
+- ❌ `/api` （没有斜杠后的内容）
+- ❌ `/apis/test` （路径不匹配）
+
+**如果需要匹配 `/api` 本身**：
+```json
+{
+  "include": ["/api", "/api/*"]
+}
+```
+
+#### 5. **部署后需要清除浏览器缓存**
+
+**问题**：修复 `_routes.json` 后，浏览器仍然显示旧的 HTML
+
+**原因**：
+- 浏览器缓存了之前的 HTML 响应
+- 即使服务器已经返回正确的图片，浏览器仍使用缓存
+
+**解决方案**：
+- 清除浏览器缓存
+- 或使用无痕模式测试
+- 或使用 `curl` 命令测试（不受浏览器缓存影响）
+
+### 验证 `_routes.json` 配置
+
+#### 方法 1：检查部署日志
+
+访问 Cloudflare Dashboard → Pages → ngo-going-out → Deployments
+
+**正常日志应包含**：
+```
+✨ Uploading Functions bundle
+✅ Functions uploaded successfully
+📋 Routes configuration loaded from _routes.json
+```
+
+**如果没有 "Routes configuration loaded"**：
+- `_routes.json` 文件不存在或位置错误
+- 检查文件是否在 `pages_build_output_dir` 指定的目录
+
+#### 方法 2：测试端点
+
+```bash
+# 测试 API 端点（应该返回 JSON）
+curl https://ngo-going-out.pages.dev/api/health
+
+# 测试 CDN 端点（应该返回图片）
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png
+
+# 测试未配置的路径（应该返回 HTML）
+curl -I https://ngo-going-out.pages.dev/unknown
+```
+
+#### 方法 3：检查 Content-Type
+
+```bash
+# 正确的 Content-Type
+curl -I https://ngo-going-out.pages.dev/api/health | grep content-type
+# 期望：content-type: application/json
+
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png | grep content-type
+# 期望：content-type: image/png
+
+# 错误的 Content-Type（说明路由配置有问题）
+curl -I https://ngo-going-out.pages.dev/cdn/org_1.png | grep content-type
+# 如果是：content-type: text/html  # ❌ 说明 _routes.json 缺少 /cdn/*
+```
+
+### 常见问题
+
+**Q: 修改 `_routes.json` 后需要重新部署吗？**
+
+A: 是的。配置更改不会自动生效，需要：
+- Git push 触发自动部署
+- 或手动部署：`npx wrangler pages deploy .`
+
+**Q: 为什么手动部署能工作，但 GitHub 自动部署不行？**
+
+A: 可能的原因：
+- `_routes.json` 文件不在 `pages_build_output_dir` 指定的目录
+- 文件名拼写错误（必须是 `_routes.json`，不是 `routes.json`）
+- 文件格式错误（必须是有效的 JSON）
+
+**Q: 可以不使用 `_routes.json` 吗？**
+
+A: 可以，但不推荐。如果没有 `_routes.json`：
+- Cloudflare 会使用默认规则
+- 默认规则可能不符合你的需求
+- 明确配置更可控、更清晰
+
+**Q: `_routes.json` 和 `_redirects` 有什么区别？**
+
+A:
+- `_routes.json`：控制哪些请求路由到 Pages Functions
+- `_redirects`：配置 URL 重定向规则（如 301, 302）
+- 两者可以同时使用
+
+### 最佳实践
+
+1. **明确配置所有 Functions 路径**
+   ```json
+   {
+     "include": ["/api/*", "/cdn/*", "/auth/*"],
+     "exclude": []
+   }
+   ```
+
+2. **使用通配符简化配置**
+   ```json
+   // ✅ 推荐
+   {
+     "include": ["/api/*"]
+   }
+
+   // ❌ 不推荐（过于具体）
+   {
+     "include": ["/api/orgs", "/api/policies", "/api/health"]
+   }
+   ```
+
+3. **在项目根目录创建 `_routes.json`**
+   - 确保文件位置正确
+   - 与 `wrangler.toml` 在同一目录
+
+4. **提交到 Git**
+   - `_routes.json` 是配置文件，应该提交到版本控制
+   - 不要添加到 `.gitignore`
+
+5. **部署后验证**
+   - 使用 `curl` 测试所有端点
+   - 检查 Content-Type 是否正确
+   - 查看部署日志确认配置加载
+
+### 总结
+
+**`_routes.json` 的三个关键点**：
+
+1. **位置**：必须在 `pages_build_output_dir` 指定的目录（通常是项目根目录）
+2. **内容**：必须包含所有需要路由到 Functions 的路径
+3. **部署**：修改后必须重新部署才能生效
+
+**记住**：
+- ✅ 有 `functions/` 目录 + 正确的 `_routes.json` = Pages Functions 工作
+- ❌ 有 `functions/` 目录 + 缺少 `_routes.json` = 返回 HTML
+- ❌ 有 `functions/` 目录 + 错误的 `_routes.json` = 返回 HTML
 
 ---
 
