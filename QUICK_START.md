@@ -171,8 +171,22 @@ export D1_DB_NAME=ngo_going_out_dev
 node import_orgs.js ../data/orgs_clean.csv --mode=replace
 ```
 
-### Q: Logo图片不显示？
-**A:** 确保Google Drive链接权限设置为"任何人都可以查看"
+### Q: Logo图片如何管理？
+**A:** 使用 Cloudflare R2 存储图片：
+```bash
+# 上传 logo 到 R2
+npx wrangler r2 object put ngo-org-logo/org_1.png --file=./logo.png --remote
+
+# 更新数据库
+npx wrangler d1 execute ngo_going_out --remote --command="
+UPDATE orgs SET logo_url = 'https://ngo-going-out.pages.dev/cdn/org_1.png' WHERE id = 1;
+"
+
+# 测试
+bash tools/test-logo-system.sh
+```
+
+详细文档：[R2_LOGO_GUIDE.md](./R2_LOGO_GUIDE.md)
 
 ---
 

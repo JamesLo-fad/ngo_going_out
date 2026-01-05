@@ -13,6 +13,7 @@ The platform provides:
 - Detailed organization profiles including mission, projects, and regions
 - Policy documents related to NGO overseas activities
 - Advanced filtering by country, sector, and organization type
+- **R2-based image storage** for organization logos and future media assets
 
 ## 📋 Project Overview
 
@@ -29,10 +30,10 @@ This project uses a modern serverless architecture:
 │                    Cloudflare Pages                         │
 │  ┌──────────────────────┐    ┌──────────────────────────┐  │
 │  │   Static Frontend    │    │   Pages Functions        │  │
-│  │   (HTML/CSS/JS)      │───▶│   (/api/*)               │  │
+│  │   (HTML/CSS/JS)      │───▶│   (/api/*, /cdn/*)       │  │
 │  │                      │    │                          │  │
-│  │  - index.html        │    │  - [[path]].js           │  │
-│  │  - org.html          │    │    (API routes)          │  │
+│  │  - index.html        │    │  - API routes            │  │
+│  │  - org.html          │    │  - CDN for R2 images     │  │
 │  └──────────────────────┘    └──────────┬───────────────┘  │
 │                                          │                  │
 │                                          ▼                  │
@@ -43,6 +44,14 @@ This project uses a modern serverless architecture:
 │                               │  - orgs (439 records)    │  │
 │                               │  - policies (12 records) │  │
 │                               │  - Full-text search      │  │
+│                               └──────────────────────────┘  │
+│                                                              │
+│                               ┌──────────────────────────┐  │
+│                               │   R2 Storage             │  │
+│                               │   (Object Storage)       │  │
+│                               │                          │  │
+│                               │  - Organization logos    │  │
+│                               │  - Future: project imgs  │  │
 │                               └──────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -385,15 +394,17 @@ database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
    - **Now**: GitHub correctly deploys Functions bundle, APIs return JSON ✅
 
 ### `_routes.json`
-Routes configuration to ensure `/api/*` requests go to Functions:
+Routes configuration to ensure `/api/*` and `/cdn/*` requests go to Functions:
 
 ```json
 {
   "version": 1,
-  "include": ["/api/*"],
+  "include": ["/api/*", "/cdn/*"],
   "exclude": []
 }
 ```
+
+**Critical**: Without `/cdn/*` in this file, image requests will return HTML instead of images. See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed explanation.
 
 ### `_headers`
 CORS headers for API access:
