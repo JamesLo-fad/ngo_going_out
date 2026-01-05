@@ -103,11 +103,8 @@
     // Use relative paths - Service Binding via Pages Functions
     const API_BASE = "";
 
-    // IMPORTANT: Update this to your deployed image proxy Worker URL
-    // Deploy the image-proxy worker first: cd image-proxy && wrangler deploy
-    // Then update this URL to match your deployed worker (e.g., https://ngo-img-proxy.your-subdomain.workers.dev)
-    // Temporarily disabled to test direct Google Drive access
-    const IMG_PROXY = ""; // Leave empty to disable proxy
+    // R2 CDN for logo images
+    const LOGO_CDN = "https://ngo-logo-cdn.ngo-going-out.workers.dev";
 
     const state = { query: "", page: 1, pageSize: 20, total: 0 };
 
@@ -127,14 +124,7 @@
       return escaped.replace(regex, '<mark style="background:#fef08a; padding:0 2px; border-radius:2px;">$1</mark>');
     }
 
-    function driveToDirect(url) {
-      if (!url) return null;
-      const m = url.match(/\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
-      // Use drive.usercontent.google.com instead of drive.google.com for better CORS support
-      return m ? `https://drive.usercontent.google.com/download?id=${m[1]}&export=view` : url;
-    }
-
-    function throughProxy(src) {
+function throughProxy(src) {
       if (!src) return null;
       try {
         const u = new URL(src);
@@ -150,11 +140,14 @@
       }
     }
 
+    // Normalize logo URL - R2 URLs can be used directly
     function normalizeLogoUrl(rawUrl) {
-      const direct = driveToDirect((rawUrl || "").trim());
-      if (!direct) return null;
-      if (/^data:image\//i.test(direct)) return direct;
-      if (/^https?:\/\//i.test(direct)) return throughProxy(direct);
+      const url = (rawUrl || "").trim();
+      if (!url) return null;
+      // Support data URIs
+      if (/^data:image\//i.test(url)) return url;
+      // Support absolute URLs (R2 CDN URLs)
+      if (/^https?:\/\//i.test(url)) return url;
       return null;
     }
 

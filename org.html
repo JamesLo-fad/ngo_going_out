@@ -64,45 +64,22 @@
   <script>
     const API_BASE = "";
 
-    // Image proxy configuration (optional)
-    // Temporarily disabled to test direct Google Drive access
-    const IMG_PROXY = ""; // Leave empty to disable proxy
+    // R2 CDN for logo images
+    const LOGO_CDN = "https://ngo-logo-cdn.ngo-going-out.workers.dev";
 
     // Placeholder logo for failed loads
     const PLACEHOLDER_LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#f3f4f6"/><text x="50%" y="50%" font-family="Arial" font-size="14" text-anchor="middle" dy=".3em" fill="#9ca3af">No Logo</text></svg>'
     );
 
-    // Convert Google Drive sharing links to direct image URLs
-    function driveToDirect(url) {
-      if (!url) return null;
-      const m = url.match(/\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
-      // Use drive.usercontent.google.com instead of drive.google.com for better CORS support
-      return m ? `https://drive.usercontent.google.com/download?id=${m[1]}&export=view` : url;
-    }
-
-    // Route image through proxy if configured
-    function throughProxy(src) {
-      if (!src) return null;
-      try {
-        const u = new URL(src);
-        if (IMG_PROXY) {
-          const p = new URL(IMG_PROXY);
-          p.searchParams.set("url", src);
-          return p.toString();
-        }
-        return src;
-      } catch {
-        return src;
-      }
-    }
-
-    // Normalize logo URL (convert Drive links, apply proxy)
+    // Normalize logo URL - R2 URLs can be used directly
     function normalizeLogoUrl(rawUrl) {
-      const direct = driveToDirect((rawUrl || "").trim());
-      if (!direct) return null;
-      if (/^data:image\//i.test(direct)) return direct;
-      if (/^https?:\/\//i.test(direct)) return throughProxy(direct);
+      const url = (rawUrl || "").trim();
+      if (!url) return null;
+      // Support data URIs
+      if (/^data:image\//i.test(url)) return url;
+      // Support absolute URLs (R2 CDN URLs)
+      if (/^https?:\/\//i.test(url)) return url;
       return null;
     }
 
