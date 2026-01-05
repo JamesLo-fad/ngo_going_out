@@ -1,0 +1,35 @@
+# ------------- Common (defaults used for local/dev) -------------
+name = "ngo-api-dev"                 # give dev a distinct script name locally
+main = "worker/src/index.js"
+compatibility_date = "2024-10-01"
+
+# D1 binding for local/dev
+# Wrangler dev uses a local SQLite database for this binding automatically.
+[[d1_databases]]
+binding = "DB"
+database_name = "ngo_going_out_dev"
+database_id = "55d3a005-b852-4706-90bf-3fc116393707"
+
+[vars]
+ENV = "development"
+DEBUG_ENABLED = "true"
+
+# Local/dev observability (optional; shows local logs in dashboard if signed in)
+[observability]
+enabled = true
+
+# Optional: make dev preview CORS-friendly for Pages served from http://127.0.0.1:5173
+# Not required if you add CORS headers in your Worker responses.
+
+# ------------- Production environment -------------
+[env.production]
+name = "ngo-api"                     # keep your prod script name
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "ngo_going_out"
+database_id = "37d806ec-8aa0-462c-ba35-aa998a1005f6"
+
+[env.production.vars]
+ENV = "production"
+DEBUG_ENABLED = "false"
