@@ -2,6 +2,8 @@
 
 A comprehensive web platform for tracking and searching Chinese NGOs with overseas operations. Built with Cloudflare Pages, D1 Database, and Pages Functions.
 
+> **For Developers**: See [README-DEV.md](README-DEV.md) for detailed development documentation and [.claude/](.claude/) for comprehensive technical notes.
+
 ## 🌐 Live Website
 
 **Main Website**: https://ngo-going-out.pages.dev

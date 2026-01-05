@@ -26,6 +26,22 @@ export function get(cols, map, key) {
   const i = map[key]; return i === undefined ? '' : (cols[i] ?? '').trim();
 }
 
+// Clean empty values: convert '', '-', 'null', whitespace to null
+export function cleanValue(val) {
+  if (val === null || val === undefined) return null;
+  const s = String(val).trim();
+  if (s === '' || s === '-' || s.toLowerCase() === 'null') return null;
+  return s;
+}
+
+// Check if a row should be skipped (all key fields are empty)
+export function shouldSkipRow(row, keyFields) {
+  return keyFields.every(field => {
+    const val = row[field];
+    return val === null || val === undefined || val === '' || val === '-';
+  });
+}
+
 export function normalizeList(raw) {
   if (!raw) return [];
   // split by common separators

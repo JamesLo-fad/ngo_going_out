@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Policies Display Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .policy { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    .policy h3 { margin-top: 0; color: #333; }
+    .field { margin: 8px 0; }
+    .label { font-weight: bold; color: #666; }
+    .value { color: #000; }
+    .empty { color: #999; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Policies Display Test - Data Cleansing Verification</h1>
+  <p>This page tests if empty fields are properly handled after data cleansing.</p>
+  <div id="results"></div>
+
+  <script>
+    async function testPolicies() {
+      const resultsDiv = document.getElementById('results');
+
+      try {
+        const response = await fetch('/api/policies?page=1&page_size=5');
+        const data = await response.json();
+
+        resultsDiv.innerHTML = `
+          <p><strong>Total policies:</strong> ${data.total}</p>
+          <p><strong>Showing:</strong> ${data.items.length} policies</p>
+          <hr>
+        `;
+
+        data.items.forEach(policy => {
+          const policyDiv = document.createElement('div');
+          policyDiv.className = 'policy';
+
+          policyDiv.innerHTML = `
+            <h3>${policy.title || '<span class="empty">No title</span>'}</h3>
+            <div class="field">
+              <span class="label">ID:</span>
+              <span class="value">${policy.id}</span>
+            </div>
+            <div class="field">
+              <span class="label">Published Date:</span>
+              <span class="value">${policy.published_date || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Doc Type:</span>
+              <span class="value">${policy.doc_type || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Issuer 1:</span>
+              <span class="value">${policy.issuer_1 || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Issuer 2:</span>
+              <span class="value">${policy.issuer_2 || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Issuer 3:</span>
+              <span class="value">${policy.issuer_3 || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Issuer 4:</span>
+              <span class="value">${policy.issuer_4 || '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Link:</span>
+              <span class="value">${policy.link ? `<a href="${policy.link}" target="_blank">${policy.link}</a>` : '<span class="empty">null</span>'}</span>
+            </div>
+            <div class="field">
+              <span class="label">Raw JSON:</span>
+              <pre style="background: #f5f5f5; padding: 10px; overflow-x: auto;">${JSON.stringify(policy, null, 2)}</pre>
+            </div>
+          `;
+
+          resultsDiv.appendChild(policyDiv);
+        });
+
+      } catch (error) {
+        resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    }
+
+    testPolicies();
+  </script>
+</body>
+</html>

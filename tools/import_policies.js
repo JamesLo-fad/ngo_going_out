@@ -15,7 +15,7 @@
 
 import fs from 'node:fs';
 import readline from 'node:readline';
-import { parseCSVLine, mapHeaders, get, d1Exec } from './helpers.js';
+import { parseCSVLine, mapHeaders, get, cleanValue, shouldSkipRow, d1Exec } from './helpers.js';
 
 const DB_NAME = process.env.D1_DB_NAME;
 
@@ -65,7 +65,7 @@ async function main() {
   }
 
   const rl = readline.createInterface({ input: fs.createReadStream(file, 'utf8'), crlfDelay: Infinity });
-  let headers, map, n = 0, errors = 0;
+  let headers, map, n = 0, errors = 0, skipped = 0;
 
   console.log('📥 开始导入数据...\n');
 
@@ -79,18 +79,24 @@ async function main() {
     const cols = parseCSVLine(line);
 
     try {
-      // 中文列名 → 英文字段名映射
+      // 中文列名 → 英文字段名映射，使用 cleanValue 清洗数据
       const row = {
         id: Number(get(cols, map, '编号') || n + 1),
-        published_date: get(cols, map, '发布时期') || '',
-        title: get(cols, map, '题目') || '',
-        doc_type: get(cols, map, '属性') || '',
-        issuer_1: get(cols, map, '发布单位（部委）1') || '',
-        issuer_2: get(cols, map, '发布单位（部委）2') || '',
-        issuer_3: get(cols, map, '发布单位（部委）3') || '',
-        issuer_4: get(cols, map, '发布单位（部委）4') || '',
-        link: get(cols, map, '链接') || ''
+        published_date: cleanValue(get(cols, map, '发布时期')),
+        title: cleanValue(get(cols, map, '题目')),
+        doc_type: cleanValue(get(cols, map, '属性')),
+        issuer_1: cleanValue(get(cols, map, '发布单位（部委）1')),
+        issuer_2: cleanValue(get(cols, map, '发布单位（部委）2')),
+        issuer_3: cleanValue(get(cols, map, '发布单位（部委）3')),
+        issuer_4: cleanValue(get(cols, map, '发布单位（部委）4')),
+        link: cleanValue(get(cols, map, '链接'))
       };
+
+      // Skip if title is empty (key field)
+      if (shouldSkipRow(row, ['title'])) {
+        skipped++;
+        continue;
+      }
 
       const sql = `
         INSERT INTO policies (id, published_date, title, doc_type, issuer_1, issuer_2, issuer_3, issuer_4, link)
@@ -122,6 +128,9 @@ async function main() {
 
   console.log(`\n\n✅ 导入完成!`);
   console.log(`   成功: ${n} 条记录`);
+  if (skipped > 0) {
+    console.log(`   跳过: ${skipped} 条记录（标题为空）`);
+  }
   if (errors > 0) {
     console.log(`   失败: ${errors} 条记录`);
   }
