@@ -25,12 +25,12 @@ export async function onRequest(context) {
 
     if (query) {
       const searchPattern = `%${query}%`;
-      sql += ' WHERE title LIKE ? OR agency1 LIKE ? OR agency2 LIKE ? OR agency3 LIKE ? OR agency4 LIKE ?';
-      countSql += ' WHERE title LIKE ? OR agency1 LIKE ? OR agency2 LIKE ? OR agency3 LIKE ? OR agency4 LIKE ?';
+      sql += ' WHERE title LIKE ? OR issuer_1 LIKE ? OR issuer_2 LIKE ? OR issuer_3 LIKE ? OR issuer_4 LIKE ?';
+      countSql += ' WHERE title LIKE ? OR issuer_1 LIKE ? OR issuer_2 LIKE ? OR issuer_3 LIKE ? OR issuer_4 LIKE ?';
       params.push(searchPattern, searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
-    sql += ' ORDER BY publish_date DESC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY published_date DESC LIMIT ? OFFSET ?';
     const queryParams = [...params, pageSize, offset];
     const countParams = [...params];
 

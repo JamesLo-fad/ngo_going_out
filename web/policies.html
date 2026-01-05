@@ -79,13 +79,13 @@
       return escapeHtml(String(v));
     }
 
-    // Merge agency fields
+    // Merge issuer fields
     function mergeAgencies(policy) {
       const agencies = [
-        policy.agency1,
-        policy.agency2,
-        policy.agency3,
-        policy.agency4
+        policy.issuer_1,
+        policy.issuer_2,
+        policy.issuer_3,
+        policy.issuer_4
       ].filter(a => a && a !== '-' && a !== '' && a !== 'null');
 
       return agencies.length > 0 ? agencies.join('、') : '-';
@@ -133,7 +133,7 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
             <div class="flex items-center gap-2">
               <span class="font-medium text-gray-600">📅 发布日期：</span>
-              <span>${displayValue(p.publish_date)}</span>
+              <span>${displayValue(p.published_date)}</span>
             </div>
             <div class="flex items-center gap-2">
               <span class="font-medium text-gray-600">📄 文件类型：</span>
