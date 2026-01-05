@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API 调试页面</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    .test { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+    .success { background: #d4edda; border-color: #c3e6cb; }
+    .error { background: #f8d7da; border-color: #f5c6cb; }
+    .pending { background: #fff3cd; border-color: #ffeaa7; }
+    pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    h2 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>NGO 数据平台 - API 调试页面</h1>
+
+  <div id="test1" class="test pending">
+    <h2>测试 1: API 健康检查</h2>
+    <p>正在测试 /api/test 端点...</p>
+    <pre id="test1-result">等待中...</pre>
+  </div>
+
+  <div id="test2" class="test pending">
+    <h2>测试 2: 组织列表 API</h2>
+    <p>正在测试 /api/orgs 端点...</p>
+    <pre id="test2-result">等待中...</pre>
+  </div>
+
+  <div id="test3" class="test pending">
+    <h2>测试 3: 政策列表 API</h2>
+    <p>正在测试 /api/policies 端点...</p>
+    <pre id="test3-result">等待中...</pre>
+  </div>
+
+  <div id="test4" class="test pending">
+    <h2>测试 4: JavaScript 环境</h2>
+    <pre id="test4-result">等待中...</pre>
+  </div>
+
+  <script>
+    // 测试 1: API 健康检查
+    async function test1() {
+      try {
+        const response = await fetch('/api/test');
+        const data = await response.json();
+        document.getElementById('test1').className = 'test success';
+        document.getElementById('test1-result').textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('test1').className = 'test error';
+        document.getElementById('test1-result').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // 测试 2: 组织列表
+    async function test2() {
+      try {
+        const response = await fetch('/api/orgs?page=1&page_size=2');
+        const data = await response.json();
+        document.getElementById('test2').className = 'test success';
+        document.getElementById('test2-result').textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('test2').className = 'test error';
+        document.getElementById('test2-result').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // 测试 3: 政策列表
+    async function test3() {
+      try {
+        const response = await fetch('/api/policies?page=1&page_size=2');
+        const data = await response.json();
+        document.getElementById('test3').className = 'test success';
+        document.getElementById('test3-result').textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('test3').className = 'test error';
+        document.getElementById('test3-result').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    // 测试 4: JavaScript 环境
+    function test4() {
+      const info = {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        location: window.location.href,
+        timestamp: new Date().toISOString()
+      };
+      document.getElementById('test4').className = 'test success';
+      document.getElementById('test4-result').textContent = JSON.stringify(info, null, 2);
+    }
+
+    // 运行所有测试
+    test1();
+    test2();
+    test3();
+    test4();
+  </script>
+</body>
+</html>
