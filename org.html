@@ -64,6 +64,46 @@
   <script>
     const API_BASE = "";
 
+    // Image proxy configuration (optional)
+    const IMG_PROXY = ""; // Leave empty to disable proxy
+
+    // Placeholder logo for failed loads
+    const PLACEHOLDER_LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="100%" height="100%" fill="#f3f4f6"/><text x="50%" y="50%" font-family="Arial" font-size="14" text-anchor="middle" dy=".3em" fill="#9ca3af">No Logo</text></svg>'
+    );
+
+    // Convert Google Drive sharing links to direct image URLs
+    function driveToDirect(url) {
+      if (!url) return null;
+      const m = url.match(/\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
+      return m ? `https://drive.google.com/uc?export=view&id=${m[1]}` : url;
+    }
+
+    // Route image through proxy if configured
+    function throughProxy(src) {
+      if (!src) return null;
+      try {
+        const u = new URL(src);
+        if (IMG_PROXY) {
+          const p = new URL(IMG_PROXY);
+          p.searchParams.set("url", src);
+          return p.toString();
+        }
+        return src;
+      } catch {
+        return src;
+      }
+    }
+
+    // Normalize logo URL (convert Drive links, apply proxy)
+    function normalizeLogoUrl(rawUrl) {
+      const direct = driveToDirect((rawUrl || "").trim());
+      if (!direct) return null;
+      if (/^data:image\//i.test(direct)) return direct;
+      if (/^https?:\/\//i.test(direct)) return throughProxy(direct);
+      return null;
+    }
+
     // Render skeleton
     function renderSkeleton() {
       document.getElementById("org-detail").innerHTML = `
@@ -178,7 +218,7 @@
           <div class="flex items-start gap-6">
             <div class="flex-shrink-0">
               ${o.logo_url && o.logo_url !== '-' ?
-                `<img src="${escapeHtml(o.logo_url)}" alt="Logo" class="w-32 h-32 object-contain rounded-lg border border-gray-200" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"128\\" height=\\"128\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f3f4f6\\"/><text x=\\"50%\\" y=\\"50%\\" font-family=\\"Arial\\" font-size=\\"14\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%239ca3af\\">No Logo</text></svg>'" />` :
+                `<img src="${escapeHtml(normalizeLogoUrl(o.logo_url) || PLACEHOLDER_LOGO)}" alt="Logo" class="w-32 h-32 object-contain rounded-lg border border-gray-200" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\"http://www.w3.org/2000/svg\\" width=\\"128\\" height=\\"128\\"><rect width=\\"100%\\" height=\\"100%\\" fill=\\"%23f3f4f6\\"/><text x=\\"50%\\" y=\\"50%\\" font-family=\\"Arial\\" font-size=\\"14\\" text-anchor=\\"middle\\" dy=\\".3em\\" fill=\\"%239ca3af\\">No Logo</text></svg>'" />` :
                 `<div class="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">暂无图片</div>`
               }
             </div>
