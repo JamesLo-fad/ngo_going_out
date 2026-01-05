@@ -65,7 +65,8 @@
     const API_BASE = "";
 
     // Image proxy configuration (optional)
-    const IMG_PROXY = "https://ngo-img-proxy.ngo-going-out.workers.dev"; // Image proxy for CORS support
+    // Temporarily disabled to test direct Google Drive access
+    const IMG_PROXY = ""; // Leave empty to disable proxy
 
     // Placeholder logo for failed loads
     const PLACEHOLDER_LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -76,7 +77,8 @@
     function driveToDirect(url) {
       if (!url) return null;
       const m = url.match(/\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
-      return m ? `https://drive.google.com/uc?export=view&id=${m[1]}` : url;
+      // Use drive.usercontent.google.com instead of drive.google.com for better CORS support
+      return m ? `https://drive.usercontent.google.com/download?id=${m[1]}&export=view` : url;
     }
 
     // Route image through proxy if configured
