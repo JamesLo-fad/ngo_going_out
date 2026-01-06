@@ -66,7 +66,7 @@
   <header>
     <div class="container">
       <div class="flex items-center gap-8">
-        <h1 class="text-xl font-bold">NGO 资料库</h1>
+        <h1 class="text-xl font-bold">中国社会组织走出去资料库</h1>
         <nav class="flex gap-6">
           <a href="./index.html" class="text-white font-medium border-b-2 border-blue-400">组织搜索</a>
         </nav>
@@ -86,7 +86,7 @@
       <div id="pagination" class="pagination"></div>
     </section>
   </main>
-  <footer><small>&copy; <span id="year"></span> NGO 目录</small></footer>
+  <footer><small>&copy; <span id="year"></span> 中国社会组织走出去资料库</small></footer>
 
   <!-- Back to Top Button -->
   <button id="back-to-top" aria-label="返回顶部" title="返回顶部">
