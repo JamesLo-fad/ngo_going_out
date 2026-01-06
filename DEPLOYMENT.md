@@ -854,7 +854,7 @@ curl https://ngo-going-out.pages.dev/cdn/org_1.png | head -5
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <title>组织搜索 - 中国 NGO 走出去数据平台</title>
+  <title>组织搜索 - 中国 NGO 走出去资料库</title>
 ```
 
 **结论**：返回的是 `index.html`，说明请求没有被路由到 Pages Function。
