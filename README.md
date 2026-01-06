@@ -1,4 +1,4 @@
-# NGO Going Out - 中国 NGO 走出去资料库
+# NGO Going Out - 中国社会组织走出去资料库
 
 A comprehensive web platform for tracking and searching Chinese NGOs with overseas operations. Built with Cloudflare Pages, D1 Database, and Pages Functions.
 
