@@ -25,3 +25,7 @@ Thumbs.db
 # Wrangler
 .wrangler/
 .dev.vars
+
+# Upload logs
+upload-log.txt
+db-update-log.txt
