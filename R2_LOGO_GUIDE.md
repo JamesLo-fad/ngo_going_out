@@ -861,9 +861,10 @@ access-control-allow-origin: *
 - [Pages Functions 文档](https://developers.cloudflare.com/pages/functions/)
 - [Wrangler CLI 文档](https://developers.cloudflare.com/workers/wrangler/)
 - [项目部署文档](./DEPLOYMENT.md)
+- [数据库维护指南](./DATABASE_MAINTENANCE.md) - 数据清理、格式统一等操作
 
 ---
 
-**最后更新**：2026-01-06
+**最后更新**：2026-01-12
 **系统状态**：✅ 完全正常运行
 **测试脚本**：`tools/test-logo-system.sh`
