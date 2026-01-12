@@ -209,12 +209,11 @@
         <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h2 class="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-blue-500">📋 基本信息</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="flex"><span class="font-medium text-gray-700 w-40">中促会：</span><span>${yesNo(o.in_cnie)}</span></div>
-            <div class="flex"><span class="font-medium text-gray-700 w-40">民促会：</span><span>${yesNo(o.in_cace)}</span></div>
-            <div class="flex"><span class="font-medium text-gray-700 w-40">联合国：</span><span>${yesNo(o.in_un)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">中促会会员：</span><span>${yesNo(o.in_cnie)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">民促会会员：</span><span>${yesNo(o.in_cace)}</span></div>
+            <div class="flex"><span class="font-medium text-gray-700 w-40">联合国咨商地位：</span><span>${yesNo(o.in_un)}</span></div>
             <div class="flex"><span class="font-medium text-gray-700 w-40">成立时间：</span><span>${displayValue(o.founded_date)}</span></div>
             <div class="flex"><span class="font-medium text-gray-700 w-40">出海时间：</span><span>${displayValue(o.go_global_date)}</span></div>
-            <div class="flex"><span class="font-medium text-gray-700 w-40">领导人：</span><span>${displayValue(o.leaders)}</span></div>
             <div class="flex col-span-full"><span class="font-medium text-gray-700 w-40">重要员工：</span><span>${displayValue(o.key_staff)}</span></div>
           </div>
         </div>
