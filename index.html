@@ -32,6 +32,31 @@
     .pagination button[disabled] { opacity:.5; cursor:not-allowed; }
     footer { padding:24px 16px; text-align:center; color:#6b7280; }
 
+    /* Stats Banner Styles */
+    .stats-banner { background:#fff; border-bottom:1px solid #e5e7eb; padding:24px 16px; }
+    .stats-banner .container { max-width:1120px; margin:0 auto; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; }
+    .stat-card { background:#fafafa; border:1px solid #e5e7eb; border-radius:12px; padding:20px; text-align:center; transition:all 0.3s ease; }
+    .stat-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .stat-icon { font-size:32px; margin-bottom:8px; }
+    .stat-number { font-size:36px; font-weight:700; color:#111827; margin:8px 0; line-height:1; }
+    .stat-label { font-size:14px; color:#6b7280; font-weight:500; }
+    .stats-loading { opacity:0.6; }
+    .stats-loading .stat-number { background:#e5e7eb; color:transparent; border-radius:4px; }
+
+    @media (max-width: 768px) {
+      .stats-banner { padding:16px; }
+      .stats-grid { gap:12px; }
+      .stat-card { padding:16px; }
+      .stat-icon { font-size:28px; }
+      .stat-number { font-size:28px; }
+      .stat-label { font-size:13px; }
+    }
+
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns:1fr; }
+    }
+
     /* Skeleton Loading Styles */
     .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s ease-in-out infinite; }
     @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -73,6 +98,30 @@
       </div>
     </div>
   </header>
+
+  <!-- Stats Banner -->
+  <section class="stats-banner" id="stats-banner" aria-label="Database Statistics">
+    <div class="container">
+      <div class="stats-grid stats-loading">
+        <div class="stat-card">
+          <div class="stat-icon">🏢</div>
+          <div class="stat-number" id="stat-total-orgs">438</div>
+          <div class="stat-label">收录组织</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🌍</div>
+          <div class="stat-number" id="stat-total-regions">324+</div>
+          <div class="stat-label">覆盖国家/地区</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-number" id="stat-overseas-pct">75.6%</div>
+          <div class="stat-label">海外业务</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <main>
     <section aria-label="Search">
       <div class="search-bar">
@@ -182,6 +231,58 @@ function throughProxy(src) {
       state.query = e.target.value.trim();
       state.page = 1; loadOrgs();
     }, 350));
+
+    // Load and display stats
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/api/stats`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        renderStats(data);
+      } catch (err) {
+        console.warn('[stats] Failed to load, using fallback:', err);
+        // Use fallback static data
+        renderStats({
+          total_orgs: 438,
+          total_regions: 324,
+          overseas_percentage: 75.6
+        });
+      }
+    }
+
+    function renderStats(data) {
+      const grid = document.querySelector('.stats-grid');
+      grid.classList.remove('stats-loading');
+
+      // Animate numbers
+      animateNumber(document.getElementById('stat-total-orgs'), 0, data.total_orgs, 1000);
+      animateNumber(document.getElementById('stat-total-regions'), 0, data.total_regions, 1000, '+');
+      animateNumber(document.getElementById('stat-overseas-pct'), 0, data.overseas_percentage, 1000, '%');
+    }
+
+    function animateNumber(element, start, end, duration, suffix = '') {
+      const startTime = performance.now();
+      const range = end - start;
+
+      function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing function (ease-out)
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const current = Math.floor(start + range * easeOut);
+
+        element.textContent = current + suffix;
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        } else {
+          element.textContent = end + suffix;
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
 
     async function loadOrgs() {
       renderSkeleton();
@@ -357,6 +458,8 @@ function throughProxy(src) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // Load stats and organizations on page load
+    loadStats();
     loadOrgs();
   </script>
 </body>
