@@ -1,6 +1,8 @@
 # File Management and Cleanup Log
 
 **Date**: 2026-01-13
+**Last Updated**: 2026-01-13 17:00
+**Current Version**: feature/stats-display (commit be04336)
 **Purpose**: Document file organization, archival, and cleanup procedures
 
 ---
@@ -8,6 +10,23 @@
 ## 📁 Current File Structure
 
 ### Active Files (Keep in Main Directory)
+
+#### Frontend Files
+- ✅ **`index.html`** - Main homepage with stats banner
+  - Purpose: Organization search interface
+  - Recent changes: Added stats banner (438 orgs, 324+ regions, 75.6% overseas)
+  - Status: **PRODUCTION FILE**
+
+#### API Endpoints (`/functions/api/`)
+- ✅ **`stats.js`** (119 lines, NEW)
+  - Purpose: Statistics API endpoint
+  - Returns: Total orgs, regions covered, overseas percentage
+  - Features: 1-hour caching, fallback data, CORS support
+  - Status: **NEW FEATURE**
+
+- ✅ **`orgs/index.js`** - Organizations list API
+  - Purpose: Search and paginate organizations
+  - Status: **PRODUCTION API**
 
 #### Data Files (`/data/`)
 - ✅ **`4_NGO going out_RA_project 614.xlsx`** (44M, original source Excel)
@@ -41,9 +60,18 @@
   - Purpose: Generate data completeness reports
   - Status: **QUALITY ASSURANCE TOOL**
 
+- ✅ **`analyze_overseas_coverage.py`** (NEW)
+  - Purpose: Analyze overseas coverage statistics
+  - Output: Total orgs, unique regions count
+  - Status: **STATISTICS TOOL**
+
 - ✅ **`compare_excel_files.py`** (5.8K)
   - Purpose: Compare two Excel files for validation
   - Status: **VALIDATION TOOL**
+
+- ✅ **`clean_multiple_spaces.py`** (NEW)
+  - Purpose: Clean double/multiple spaces in text fields
+  - Status: **MAINTENANCE TOOL**
 
 #### JavaScript Tools (`/tools/`)
 - ✅ **`import_orgs_corrected.js`** (7.9K)
@@ -62,9 +90,37 @@
   - Purpose: Generate logo URL mappings
   - Status: **UTILITY**
 
+#### Active Documentation (`/`)
+- ✅ **`README.md`** - Project overview and setup instructions
+- ✅ **`FILE_MANAGEMENT.md`** - This file, file organization guide
+- ✅ **`WEBSITE_ENHANCEMENT_PLAN.md`** (NEW)
+  - Purpose: Planning document for stats banner feature
+  - Status: **REFERENCE DOCUMENT**
+- ✅ **`STATS_BANNER_IMPLEMENTATION.md`** (NEW)
+  - Purpose: Technical implementation details for stats banner
+  - Status: **TECHNICAL REFERENCE**
+- ✅ **`SIZE_REDUCTION_VERIFICATION_REPORT.md`** (NEW)
+  - Purpose: Latest verification report for size reductions
+  - Status: **CURRENT STATUS REPORT**
+- ✅ **`DATABASE_IMPROVEMENT_COMPLETION_REPORT.md`** - Column structure fixes
+- ✅ **`DATABASE_MAINTENANCE.md`** - Database maintenance procedures
+- ✅ **`DEPLOYMENT.md`** - Deployment guide
+- ✅ **`R2_LOGO_GUIDE.md`** - Logo upload and management guide
+- ✅ **`QUICK_START.md`** - Quick start guide
+
 ---
 
 ## 📦 Archived Files
+
+### Archived Reports (`/archive/reports/2026-01-13/`)
+
+**Completed Quality Reports (Archived 2026-01-13 17:00):**
+- `FINAL_QUALITY_REVIEW_REPORT.md` - Final quality review (spacing, "——" values)
+- `TEXT_DATA_FIX_COMPLETION_REPORT.md` - Text truncation and newline fixes
+- `DATA_COMPLETENESS_REPORT.md` - Data completeness analysis
+- `VALIDATION_REPORT.md` - Initial validation findings
+
+**Reason**: Reports completed, database verified 100% quality. Archived for historical reference.
 
 ### Archived Data Exports (`/archive/data/`)
 
@@ -270,6 +326,13 @@ mv /Users/jameslo-aa/ngo_going_out/tools/restore_logo_urls.js /Users/jameslo-aa/
 
 ---
 
-**Last Updated**: 2026-01-13 15:45
-**Updated By**: Database Maintenance Script
+**Last Updated**: 2026-01-13 17:00
+**Updated By**: Stats Banner Feature Implementation
+**Current Version**: feature/stats-display (commit be04336)
 **Next Review**: 2026-01-20
+
+**Recent Changes**:
+- Added stats banner feature to homepage
+- Created /api/stats endpoint
+- Archived completed quality reports
+- Updated documentation structure
