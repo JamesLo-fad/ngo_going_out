@@ -27,9 +27,12 @@ export function get(cols, map, key) {
 }
 
 // Clean empty values: convert '', '-', 'null', whitespace to null
+// Note: '——' (Chinese dash) is preserved as a valid value meaning "not applicable"
 export function cleanValue(val) {
   if (val === null || val === undefined) return null;
   const s = String(val).trim();
+  // Only convert single dash '-' to null, not Chinese dash '——'
+  // Check for exact single dash, not substring
   if (s === '' || s === '-' || s.toLowerCase() === 'null') return null;
   return s;
 }
@@ -50,7 +53,11 @@ export function normalizeList(raw) {
 
 export function esc(v) {
   if (v === null || v === undefined || v === '') return 'NULL';
-  if (typeof v === 'number') return String(v);
+  if (typeof v === 'number') {
+    // Handle NaN and Infinity
+    if (isNaN(v) || !isFinite(v)) return 'NULL';
+    return String(v);
+  }
   if (/^\d+$/.test(v)) return v; // numeric strings
   return `'${String(v).replace(/'/g, "''")}'`;
 }

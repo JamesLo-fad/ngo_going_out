@@ -120,7 +120,8 @@ async function main() {
         disclosed_online: parseYesNo(get(cols, map, '是否有网上披露')),
         disclosed_continuous: parseYesNo(get(cols, map, '是否持续性披露')),
         go_out_level: cleanValue(get(cols, map, '走出去程度')),
-        logo_url: cleanValue(get(cols, map, '官网LOGO或图片'))
+        // Don't import logo_url from Excel - preserve database values from R2
+        logo_url: null
       };
 
       // Skip if org_name is empty (key field)
@@ -129,14 +130,15 @@ async function main() {
         continue;
       }
 
-      // Upsert org (production schema - without donation_post_year, disclosed_online, disclosed_continuous, go_out_level, logo_url)
+      // Upsert org - now includes all fields
       const sql = `
         INSERT INTO orgs (
           id, org_name, in_cnie, in_cace, in_un, founded_date, go_global_date, leaders, key_staff, capital_type,
           reg_location, reg_type, donation_pre, donation_pre_year, donation_post,
           mission, org_structure, has_overseas_office, overseas_mission, overseas_projects, overseas_regions,
-          overseas_services, service_mode, has_official_background, sources
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          overseas_services, service_mode, has_official_background, sources,
+          disclosed_online, disclosed_continuous, go_out_level, logo_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           org_name=excluded.org_name,
           in_cnie=excluded.in_cnie,
@@ -161,13 +163,18 @@ async function main() {
           overseas_services=excluded.overseas_services,
           service_mode=excluded.service_mode,
           has_official_background=excluded.has_official_background,
-          sources=excluded.sources;
+          sources=excluded.sources,
+          disclosed_online=excluded.disclosed_online,
+          disclosed_continuous=excluded.disclosed_continuous,
+          go_out_level=excluded.go_out_level,
+          logo_url=COALESCE(orgs.logo_url, excluded.logo_url);
       `;
       await d1Exec(DB_NAME, sql, [
         row.id, row.org_name, row.in_cnie, row.in_cace, row.in_un, row.founded_date, row.go_global_date, row.leaders, row.key_staff, row.capital_type,
         row.reg_location, row.reg_type, row.donation_pre, row.donation_pre_year, row.donation_post,
         row.mission, row.org_structure, row.has_overseas_office, row.overseas_mission, row.overseas_projects, row.overseas_regions,
-        row.overseas_services, row.service_mode, row.has_official_background, row.sources
+        row.overseas_services, row.service_mode, row.has_official_background, row.sources,
+        row.disclosed_online, row.disclosed_continuous, row.go_out_level, row.logo_url
       ]);
 
       // Note: orgs_facets table not available in production database
