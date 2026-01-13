@@ -33,14 +33,14 @@ export async function onRequest(context) {
     console.log('[stats] Cache miss, querying database');
 
     // Query total organizations
-    const totalResult = await env.DB.prepare(
+    const totalResult = await env.database.prepare(
       'SELECT COUNT(*) as total FROM orgs'
     ).first();
 
     const totalOrgs = totalResult?.total || 438;
 
     // Query organizations with overseas data
-    const overseasResult = await env.DB.prepare(
+    const overseasResult = await env.database.prepare(
       'SELECT COUNT(*) as count FROM orgs WHERE overseas_regions IS NOT NULL AND overseas_regions != ?'
     ).bind('——').first();
 
@@ -52,7 +52,7 @@ export async function onRequest(context) {
       : 0;
 
     // Query all overseas_regions for unique count
-    const regionsData = await env.DB.prepare(
+    const regionsData = await env.database.prepare(
       'SELECT overseas_regions FROM orgs WHERE overseas_regions IS NOT NULL AND overseas_regions != ?'
     ).bind('——').all();
 
